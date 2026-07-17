@@ -1,0 +1,67 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runtime
+    image: slimtds:local
+    env_file: .env
+    environment:
+      DEPLOY_MODE: ${DEPLOY_MODE:-dev}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./geoip-data:/usr/share/GeoIP:ro
+      - ./var/backups:/app/var/backups
+    networks:
+      - slimtds
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/__health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-slimtds}
+      POSTGRES_USER: ${DB_USER:-slimtds}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-slimtds}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - slimtds
+    restart: unless-stopped
+
+  cron:
+    image: slimtds:local
+    depends_on:
+      app:
+        condition: service_started
+    env_file: .env
+    entrypoint: ["/usr/bin/supercronic"]
+    command: ["/app/docker/supercronic/crontab"]
+    volumes:
+      - ./docker/supercronic/crontab:/app/docker/supercronic/crontab:ro
+      - ./var/backups:/app/var/backups
+      - ./geoip-data:/usr/share/GeoIP:ro
+    networks:
+      - slimtds
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+
+networks:
+  slimtds:
+    driver: bridge
+
+volumes:
+  pgdata:

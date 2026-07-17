@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Lander B · About</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 640px; margin: 64px auto; padding: 0 24px; color: #1a1917; background: #fafaf7; }
+        h1 { font-size: 2.5rem; letter-spacing: -0.03em; margin-bottom: 8px; color: #0d6e6e; }
+        .meta { font-size: 0.85rem; color: #6b6457; font-family: ui-monospace, SFMono-Regular, monospace; margin-bottom: 24px; }
+        nav a { color: #0d6e6e; text-decoration: none; margin-right: 14px; font-size: 0.9rem; border-bottom: 1px dashed transparent; padding-bottom: 1px; }
+        nav a:hover { border-bottom-color: #0d6e6e; }
+        nav { margin-bottom: 32px; }
+        button { background: #0d6e6e; color: white; padding: 8px 14px; border: 0; border-radius: 4px; font-size: 0.9rem; cursor: pointer; font-weight: 500; }
+        button:hover { background: #0a5757; }
+        code { background: #efece5; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <h1>Lander B · About</h1>
+    <p class="meta">slimTDS pixel demo · campaign <code>demo01</code> · domain <code>lander-b.local</code></p>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/pricing">Pricing</a>
+    </nav>
+
+    <p style="font-size:0.9rem">About this site — fired view_about on load.</p>
+    
+
+    <p style="margin-top: 48px; font-size: 0.85rem; color: #6b6457">Open <code>https://slimtds.local/admin/pixel</code> to see events.</p>
+
+    <script async src="https://example.com/p.js?c=mainpage"></script>
+    <script>
+      // Fire custom auto-event after pixel loads
+      window.addEventListener('load', function () {
+        var tries = 0;
+        var iv = setInterval(function () {
+          if (window.slimTDS && window.slimTDS.track) {
+            if (window.slimTDS) slimTDS.track('view_about', { page: 'about' });
+            clearInterval(iv);
+          }
+          if (++tries > 50) clearInterval(iv);
+        }, 100);
+      });
+    </script>
+</body>
+</html>

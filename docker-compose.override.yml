@@ -1,0 +1,63 @@
+services:
+  app:
+    build:
+      target: runtime
+    volumes:
+      - ./:/app
+      - /app/vendor
+      - /app/node_modules
+    labels:
+      dev.orbstack.domains: "slimtds.local"
+      dev.orbstack.https: "true"
+    environment:
+      DEPLOY_MODE: dev
+      FRANKENPHP_WORKER_MODE: 1
+
+  # In dev the cron container must run the LIVE source like app, otherwise
+  # newly-added console commands (e.g. rrweb:flush) live only in the mounted
+  # source but not the baked image, and supercronic fails with
+  # "There are no commands defined in the <ns> namespace".
+  cron:
+    volumes:
+      - ./:/app
+      - /app/vendor
+      - /app/node_modules
+
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  assets:
+    profiles: ["dev"]
+    image: oven/bun:1-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: ["sh", "-c", "bun install && bun run watch"]
+    networks:
+      - slimtds
+
+  db-test:
+    profiles: ["test"]
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: slimtds_test
+      POSTGRES_USER: slimtds
+      POSTGRES_PASSWORD: slimtds
+    tmpfs:
+      - /var/lib/postgresql
+    networks:
+      - slimtds
+
+  geoipupdate:
+    profiles: ["geo"]
+    image: maxmindinc/geoipupdate:latest
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}
+      GEOIPUPDATE_EDITION_IDS: "GeoLite2-Country GeoLite2-City GeoLite2-ASN"
+      GEOIPUPDATE_FREQUENCY: "168"
+    volumes:
+      - ./geoip-data:/usr/share/GeoIP
+    networks:
+      - slimtds

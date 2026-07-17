@@ -1,0 +1,39 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect width="32" height="32" rx="5" fill="#1a1917"/>
+  <!-- chip body -->
+  <rect x="9" y="9" width="14" height="14" rx="1.5" fill="#fafaf7" stroke="#b54f17" stroke-width="0.6"/>
+  <!-- letter S -->
+  <text x="16" y="20.4" text-anchor="middle" font-family="Bricolage Grotesque, Georgia, serif" font-size="11" font-weight="700" fill="#b54f17">S</text>
+  <!-- traces top -->
+  <rect x="11.7" y="3" width="0.8" height="6" fill="#d9713e"/>
+  <rect x="15.6" y="2" width="0.8" height="7" fill="#d9713e"/>
+  <rect x="19.5" y="3" width="0.8" height="6" fill="#d9713e"/>
+  <!-- traces bottom -->
+  <rect x="11.7" y="23" width="0.8" height="6" fill="#d9713e"/>
+  <rect x="15.6" y="23" width="0.8" height="7" fill="#d9713e"/>
+  <rect x="19.5" y="23" width="0.8" height="6" fill="#d9713e"/>
+  <!-- traces left -->
+  <rect x="3" y="11.7" width="6" height="0.8" fill="#d9713e"/>
+  <rect x="2" y="15.6" width="7" height="0.8" fill="#d9713e"/>
+  <rect x="3" y="19.5" width="6" height="0.8" fill="#d9713e"/>
+  <!-- traces right -->
+  <rect x="23" y="11.7" width="6" height="0.8" fill="#d9713e"/>
+  <rect x="23" y="15.6" width="7" height="0.8" fill="#d9713e"/>
+  <rect x="23" y="19.5" width="6" height="0.8" fill="#d9713e"/>
+  <!-- contact dots top -->
+  <circle cx="12.1" cy="2.4" r="0.7" fill="#d9713e"/>
+  <circle cx="16" cy="1.6" r="0.7" fill="#d9713e"/>
+  <circle cx="19.9" cy="2.4" r="0.7" fill="#d9713e"/>
+  <!-- contact dots bottom -->
+  <circle cx="12.1" cy="29.6" r="0.7" fill="#d9713e"/>
+  <circle cx="16" cy="30.4" r="0.7" fill="#d9713e"/>
+  <circle cx="19.9" cy="29.6" r="0.7" fill="#d9713e"/>
+  <!-- contact dots left -->
+  <circle cx="2.4" cy="12.1" r="0.7" fill="#d9713e"/>
+  <circle cx="1.6" cy="16" r="0.7" fill="#d9713e"/>
+  <circle cx="2.4" cy="19.9" r="0.7" fill="#d9713e"/>
+  <!-- contact dots right -->
+  <circle cx="29.6" cy="12.1" r="0.7" fill="#d9713e"/>
+  <circle cx="30.4" cy="16" r="0.7" fill="#d9713e"/>
+  <circle cx="29.6" cy="19.9" r="0.7" fill="#d9713e"/>
+</svg>

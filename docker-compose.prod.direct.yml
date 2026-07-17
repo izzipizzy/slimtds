@@ -1,0 +1,30 @@
+services:
+  app:
+    environment:
+      DEPLOY_MODE: direct
+      APP_ENV: prod
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+  geoipupdate:
+    image: maxmindinc/geoipupdate:latest
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}
+      GEOIPUPDATE_EDITION_IDS: "GeoLite2-Country GeoLite2-City GeoLite2-ASN"
+      GEOIPUPDATE_FREQUENCY: "24"
+    volumes:
+      - geoip-data:/usr/share/GeoIP
+    networks:
+      - slimtds
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:
+  geoip-data:

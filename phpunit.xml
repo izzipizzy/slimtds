@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="false"
+         failOnRisky="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+        <testsuite name="Arch">
+            <directory>tests/Arch</directory>
+        </testsuite>
+        <testsuite name="Browser">
+            <directory>tests/Browser</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="test" force="true"/>
+        <env name="APP_DEBUG" value="true" force="true"/>
+        <env name="DB_DSN" value="pgsql:host=db-test;port=5432;dbname=slimtds_test" force="true"/>
+        <env name="DB_USER" value="slimtds" force="true"/>
+        <env name="DB_PASSWORD" value="slimtds" force="true"/>
+        <env name="RATE_LIMIT_IP" value="10" force="true"/>
+        <env name="RATE_LIMIT_LOGIN" value="5" force="true"/>
+        <env name="RATE_LIMIT_COOKIE" value="20" force="true"/>
+        <env name="SESSION_NAME" value="slimtds_sess" force="true"/>
+        <env name="SESSION_LIFETIME" value="3600" force="true"/>
+        <env name="APP_SECRET" value="test-secret-32-bytes-long-string" force="true"/>
+    </php>
+</phpunit>

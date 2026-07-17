@@ -1,0 +1,36 @@
+---
+title: Traffic Filtering
+---
+
+This page covers how slimTDS identifies and classifies incoming visitors before routing them — specifically bot detection and the handling of traffic that matches no flow.
+
+## Bot detection
+
+`BotDetector` runs as every click is handled, right after `GeoLookup`. It checks the visitor against five signal layers in order:
+
+1. **Explicit IP list** (`core.bot_ips`) — individual IPs of known search-engine crawlers sourced from [myip.ms live webcrawlers](https://myip.ms/files/bots/live_webcrawlers.txt).
+2. **CIDR ranges** (`core.bot_cidrs`) — datacenter and VPN IP blocks from [X4BNet/lists\_vpn](https://github.com/X4BNet/lists_vpn) (`output/datacenter/ipv4.txt` and `output/vpn/ipv4.txt`). Postgres uses a GiST index on the `inet` column for sub-millisecond point lookups.
+3. **ASN blocklist** (`core.bot_asns`) — ASN numbers of known hosting and datacenter providers from [brianhama/bad-asn-list](https://raw.githubusercontent.com/brianhama/bad-asn-list/master/bad-asn-list.csv). Only applied when `GeoLookup` successfully resolves an ASN for the visitor.
+4. **ISP name regex** — a fallback regex match against the resolved ISP name for well-known search engines (Google, Yandex, Bing, Mail.ru, Baidu, Yahoo) when the ASN stage produces no hit.
+5. **User-Agent patterns** — regex matching against known bot UA signatures including `Googlebot`, `YandexBot`, `bingbot`, `Baiduspider`, `HeadlessChrome`, `wget`, `curl`, `python-requests`, and generic `bot/crawler/spider/scraper` patterns.
+
+If any stage fires, `ctx.isBot` is set to `true` and `ctx.botName` records the matched category. **Bot clicks are still logged** to `stats.clicks` with `is_bot = true` — they are not dropped, so traffic quality is visible in the admin.
+
+The IP list is refreshed by the `bots:update` cron (daily). ASN and CIDR lists are refreshed by the `bots:update-extra` cron (also daily).
+
+## Trash traffic
+
+"Trash" is traffic that reaches an active campaign but matches no flow — for example, a visitor from a geo that no flow targets, or one that fails all filter groups. The campaign's `trash_mode` field controls the response:
+
+| Value | Behavior |
+|-------|----------|
+| `0` | Return HTTP 200 with an empty body (blank page) |
+| `1` | HTTP 302 redirect to `trash_url` (falls back to 204 if `trash_url` is unset) |
+| `2` | HTTP 403 Forbidden |
+| `3` | HTTP 404 Not Found |
+| `4` | HTTP 301 permanent redirect to `trash_url` (falls back to 204) |
+| `5` | HTTP 307 redirect to `trash_url` (preserves request method; falls back to 204) |
+| `6` | Meta-refresh redirect to `trash_url` (falls back to 204) |
+| `7` | JavaScript redirect to `trash_url` (falls back to 204) |
+
+Trash clicks are always logged to `stats.clicks` with the HTTP status that was actually sent, and — for redirect modes (1, 4, 5, 6, 7) — the `out_url` is set to `trash_url` so the admin clicks view shows where the visitor was sent.

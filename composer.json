@@ -1,0 +1,54 @@
+{
+    "name": "claude/slim-tds",
+    "description": "Slim-based TDS (Traffic Distribution System)",
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "php": "^8.4",
+        "geoip2/geoip2": "^3.0",
+        "mobiledetect/mobiledetectlib": "^4.8",
+        "php-di/php-di": "^7.0",
+        "php-di/slim-bridge": "^3.4",
+        "ramsey/uuid": "^4.7",
+        "respect/validation": "^2.3",
+        "robmorgan/phinx": "^0.16",
+        "slim/psr7": "^1.7",
+        "slim/slim": "^4.14",
+        "symfony/console": "^7.1",
+        "symfony/process": "^7.1",
+        "symfony/translation": "^7.1",
+        "symfony/yaml": "^7.1",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-arch": "^4.0",
+        "pestphp/pest-plugin-browser": "^4.0",
+        "phpstan/phpstan": "^1.12",
+        "fakerphp/faker": "^1.23"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        },
+        "files": [
+            "src/Shared/View/Helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "stan": "phpstan analyse"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable"
+}

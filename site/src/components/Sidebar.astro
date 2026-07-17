@@ -1,0 +1,284 @@
+---
+/**
+ * Custom Sidebar override: renders the standard nav tree but injects the
+ * current page's TOC headings as a nested sub-list directly beneath the
+ * active page link.
+ */
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
+import type { TocItem } from '@astrojs/starlight/utils/generateToC';
+
+const { sidebar, toc } = Astro.locals.starlightRoute;
+
+// Flatten top-level TOC items, skipping the synthetic H1/_top entry.
+const tocItems: TocItem[] = toc
+  ? toc.items.filter((item) => item.slug !== '_top').flatMap((item) => [item, ...item.children])
+  : [];
+
+// Recursive helper to render a sidebar entry.
+function hasCurrentEntry(entries: SidebarEntry[]): boolean {
+  return entries.some(
+    (e) => (e.type === 'link' && e.isCurrent) || (e.type === 'group' && hasCurrentEntry(e.entries))
+  );
+}
+---
+
+<SidebarPersister>
+  <ul class="top-level">
+    {sidebar.map((entry) => (
+      <li>
+        {entry.type === 'link' ? (
+          <>
+            <a
+              href={entry.href}
+              aria-current={entry.isCurrent ? 'page' : undefined}
+              class="large"
+            >
+              <span>{entry.label}</span>
+            </a>
+            {entry.isCurrent && tocItems.length > 0 && (
+              <ul class="page-toc" id="starlight-left-toc">
+                {tocItems.map((heading) => (
+                  <li class:list={[`depth-${heading.depth}`]}>
+                    <a href={`#${heading.slug}`}>{heading.text}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <details open={hasCurrentEntry(entry.entries) || !entry.collapsed}>
+            <summary>
+              <span class="group-label large">{entry.label}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="caret" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+            </summary>
+            <ul>
+              {entry.entries.map((child) => (
+                <li>
+                  {child.type === 'link' ? (
+                    <>
+                      <a
+                        href={child.href}
+                        aria-current={child.isCurrent ? 'page' : undefined}
+                      >
+                        <span>{child.label}</span>
+                      </a>
+                      {child.isCurrent && tocItems.length > 0 && (
+                        <ul class="page-toc" id="starlight-left-toc">
+                          {tocItems.map((heading) => (
+                            <li class:list={[`depth-${heading.depth}`]}>
+                              <a href={`#${heading.slug}`}>{heading.text}</a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  ) : (
+                    /* nested group — render a simple sub-details */
+                    <details open={hasCurrentEntry(child.entries) || !child.collapsed}>
+                      <summary>
+                        <span class="group-label">{child.label}</span>
+                      </summary>
+                      <ul>
+                        {child.entries.map((leaf) => (
+                          <li>
+                            {leaf.type === 'link' && (
+                              <>
+                                <a href={leaf.href} aria-current={leaf.isCurrent ? 'page' : undefined}>
+                                  <span>{leaf.label}</span>
+                                </a>
+                                {leaf.isCurrent && tocItems.length > 0 && (
+                                  <ul class="page-toc" id="starlight-left-toc">
+                                    {tocItems.map((heading) => (
+                                      <li class:list={[`depth-${heading.depth}`]}>
+                                        <a href={`#${heading.slug}`}>{heading.text}</a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </li>
+    ))}
+  </ul>
+</SidebarPersister>
+
+<div class="md:sl-hidden">
+  <MobileMenuFooter />
+</div>
+
+<style>
+  @layer starlight.core {
+    ul {
+      --sl-sidebar-item-padding-inline: 0.5rem;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      overflow-wrap: anywhere;
+    }
+
+    /* indent nested group items */
+    ul ul li {
+      margin-inline-start: var(--sl-sidebar-item-padding-inline);
+      border-inline-start: 1px solid var(--sl-color-hairline-light);
+      padding-inline-start: var(--sl-sidebar-item-padding-inline);
+    }
+
+    .large {
+      font-size: var(--sl-text-lg);
+      font-weight: 600;
+      color: var(--sl-color-white);
+    }
+
+    .top-level > li + li {
+      margin-top: 0.75rem;
+    }
+
+    summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.2em var(--sl-sidebar-item-padding-inline);
+      line-height: 1.4;
+      cursor: pointer;
+      user-select: none;
+    }
+    summary::marker,
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .caret {
+      transition: transform 0.2s ease-in-out;
+      flex-shrink: 0;
+    }
+    [open] > summary .caret {
+      transform: rotateZ(90deg);
+    }
+
+    a {
+      display: block;
+      border-radius: 0.25rem;
+      text-decoration: none;
+      color: var(--sl-color-gray-2);
+      padding: 0.3em var(--sl-sidebar-item-padding-inline);
+      line-height: 1.4;
+    }
+
+    a:hover,
+    a:focus {
+      color: var(--sl-color-white);
+    }
+
+    [aria-current='page'],
+    [aria-current='page']:hover,
+    [aria-current='page']:focus {
+      font-weight: 600;
+      color: var(--sl-color-text-invert);
+      background-color: var(--sl-color-text-accent);
+    }
+
+    /* ── Page TOC nested under current page link ── */
+    .page-toc {
+      margin-top: 0.25rem;
+      margin-bottom: 0.25rem;
+      border-inline-start: 2px solid var(--sl-color-accent);
+      padding-inline-start: 0.5rem;
+      margin-inline-start: var(--sl-sidebar-item-padding-inline);
+    }
+
+    .page-toc li {
+      margin-inline-start: 0;
+      border-inline-start: none;
+      padding-inline-start: 0;
+    }
+
+    .page-toc a {
+      font-size: var(--sl-text-xs);
+      color: var(--sl-color-gray-3);
+      padding-block: 0.2em;
+      font-weight: 400;
+    }
+
+    .page-toc a:hover {
+      color: var(--sl-color-white);
+    }
+
+    /* extra indent for h3+ items */
+    .page-toc li.depth-3 a,
+    .page-toc li.depth-4 a {
+      padding-inline-start: 0.75rem;
+    }
+
+    .page-toc li.depth-4 a {
+      padding-inline-start: 1.25rem;
+    }
+
+    @media (min-width: 50rem) {
+      .top-level > li + li {
+        margin-top: 0.5rem;
+      }
+      .large {
+        font-size: var(--sl-text-base);
+      }
+      a {
+        font-size: var(--sl-text-sm);
+      }
+    }
+  }
+</style>
+
+<script>
+  // Highlight the active TOC heading on scroll, matching the right-sidebar behaviour.
+  (function () {
+    const toc = document.getElementById('starlight-left-toc');
+    if (!toc) return;
+
+    const links = Array.from(toc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'));
+    if (!links.length) return;
+
+    const headingIds = links.map((a) => a.getAttribute('href')!.slice(1));
+    const headings = headingIds
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+
+    let current: HTMLAnchorElement | null = null;
+
+    function setActive(link: HTMLAnchorElement) {
+      if (link === current) return;
+      if (current) current.removeAttribute('aria-current');
+      link.setAttribute('aria-current', 'true');
+      current = link;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const idx = headings.indexOf(entry.target as HTMLElement);
+          if (idx !== -1) {
+            setActive(links[idx]);
+            break;
+          }
+        }
+      },
+      { rootMargin: '-80px 0% -66% 0%' }
+    );
+
+    headings.forEach((h) => observer.observe(h));
+  })();
+</script>

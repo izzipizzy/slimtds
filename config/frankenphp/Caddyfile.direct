@@ -1,0 +1,23 @@
+{
+    frankenphp {
+        worker {
+            file /app/config/frankenphp/worker.php
+            num 8
+        }
+    }
+    email admin@{$DOMAIN}
+    admin off
+}
+
+{$DOMAIN} {
+    root * /app/public
+    encode zstd gzip
+
+    @static path /assets/* /p.js /favicon.ico /robots.txt
+    handle @static { file_server }
+
+    @pjs path /p.js
+    header @pjs Access-Control-Allow-Origin *
+
+    php_server
+}

@@ -1,0 +1,115 @@
+---
+title: How a click is handled
+---
+
+## The click pipeline
+
+slimTDS runs your organic / SEO traffic through a TDS: every click on a search result or SEO lander lands on `/<slug>`, where `slug` identifies the campaign. `ClickHandler` walks the click through a fixed pipeline:
+
+1. **VisitorResolver** — checks the `vu` cookie for an existing visitor UUID. If absent, computes a 24-hour fingerprint (SHA-256 of IP + User-Agent + Accept-Language + app secret) and looks it up in `stats.visitors_fingerprints`. If that too misses, mints a new UUIDv7 and records the fingerprint. A separate lookup checks `stats.pixel_events` for a recent (30-day window) FingerprintJS CE visitor ID from the lander pixel.
+2. **DeviceDetector** — parses the User-Agent to determine device type, OS, and browser via `mobiledetectlib`.
+3. **GeoLookup** — queries MaxMind GeoLite2 City, Country, and ASN databases to populate country, region, city, ASN, and ISP. Silently no-ops if the `.mmdb` files are absent from `geoip-data/`.
+4. **BotDetector** — checks the visitor IP against a bot IP blocklist and ASN table, and the User-Agent against known bot signatures. The list is refreshed daily by the `bots:update` cron.
+5. **FlowMatcher + FilterCompiler** — iterates the campaign's active flows in order. For each flow, `FilterCompiler` compiles the JSONB filter structure into a PHP closure and evaluates it against the visitor context. First match wins.
+6. **OfferPicker** — selects an offer from the matched flow's `target_offers` list. Selection is weighted by each offer's share of impressions and visitor-stable: the visitor UUID is hashed to produce a consistent point in the weight distribution, so the same visitor always lands on the same offer.
+7. **MacroExpander** — substitutes tokens in the offer URL and any schema body/url config (see [Macros](#macros) below).
+8. **Schema response** — the flow's configured schema type renders the HTTP response (redirect, iframe, HTML, etc.).
+9. **Click log** — the click is written synchronously to `stats.clicks` (RANGE-partitioned monthly, BRIN index on `created_at`) before the response is returned.
+
+## Data model
+
+### Campaigns
+
+A campaign is the entry point for traffic. Its **slug** is either a Bitcoin-Base58 6-character random string (alphabet excludes `0`, `O`, `I`, `l`) or a custom alias matching `^[a-zA-Z0-9]{3,16}$`. The slug becomes the live URL: `/<slug>`.
+
+### Global offers
+
+Offers are **global** — they are not owned by any campaign. The `core.offers` table has no `campaign_id` column. A campaign's relationship to offers is derived entirely from its flows' `target_offers` JSONB field, allowing one offer to be reused across many campaigns simultaneously.
+
+### Flows and filters
+
+Each campaign has one or more flows evaluated in order. A flow carries:
+
+- **Filters** — a JSONB structure `{ groups: [ { conditions: [...] } ] }` where conditions are ANDed within a group, and groups are ORed. An empty filter array matches every visitor (catch-all).
+- **Target offers** — a list of `{ offer_id, weight }` pairs, where each offer's weight is its share of impressions within the flow.
+- **Schema** — how to respond when this flow matches.
+
+![Campaign list in the slimTDS admin](../../assets/screenshots/campaigns.png)
+
+![Campaign configuration screen showing flows and offer targets](../../assets/screenshots/campaign-workspace.png)
+
+## Response schemas
+
+When a flow matches, the schema type controls how the visitor is delivered to the offer. There are **16 schema types** registered in `SchemaRegistry`:
+
+| ID | Schema |
+|----|--------|
+| 1 | HTTP 301 Redirect |
+| 2 | HTTP 302 Redirect |
+| 3 | HTTP 303 Redirect |
+| 4 | HTTP 307 Redirect |
+| 5 | HTTP 308 Redirect |
+| 6 | Meta Refresh |
+| 7 | Double Meta Refresh |
+| 8 | iFrame |
+| 9 | HTML Page |
+| 10 | Show Text |
+| 11 | JSON |
+| 12 | Curl Proxy |
+| 13 | No Action (200 blank) |
+| 14 | HTTP Code |
+| 15 | Formula |
+| 16 | JS Redirect |
+
+New schemas can be added by registering an additional entry in `SchemaRegistry`.
+
+## Macros
+
+`MacroExpander` substitutes tokens in offer URLs, postback URL templates, and schema body/url config fields at request time:
+
+| Token | Resolves to |
+|-------|-------------|
+| `{click_id}` | UUIDv7 click identifier |
+| `{visitor_uuid}` | Persistent visitor UUID |
+| `{campaign_slug}` | Campaign slug |
+| `{country}` | ISO 3166-1 alpha-2 country code |
+| `{region}` | Region / subdivision |
+| `{city}` | City name |
+| `{device}` | Device type (`mobile`, `tablet`, `desktop`) |
+| `{os}` | Operating system |
+| `{browser}` | Browser name |
+| `{lang}` | Accept-Language value |
+| `{ip}` | Visitor IP address |
+| `{ua}` | User-Agent string |
+| `{referer}` | HTTP Referer header |
+| `{bot}` | Bot name (if detected) |
+| `{lander_host}` | Originating lander hostname |
+| `{lander_domain}` | Lander domain without TLD |
+| `{lander_button}` | Lander button/path segment |
+| `{timestamp}` | Unix timestamp |
+| `{utm_source}` | UTM source parameter |
+| `{utm_medium}` | UTM medium parameter |
+| `{utm_campaign}` | UTM campaign parameter |
+| `{utm_term}` | UTM term parameter |
+| `{utm_content}` | UTM content parameter |
+| `{rand:MIN-MAX}` | Random integer between MIN and MAX |
+| `{randstr:N}` | Random Base58 string of length N |
+| `{spin:a\|b\|c}` | Uniform-random pick from a `\|`-separated list |
+
+Unrecognised tokens are left as-is.
+
+### `{spin}` — rotating landings in one offer
+
+`{spin:a|b|c}` picks one of the pipe-separated values uniformly at random on every request. Whitespace around each value is trimmed and empty segments are dropped; if nothing valid remains it resolves to an empty string so the literal never leaks into a URL. **Weight a value by repeating it** — `{spin:a|a|b}` yields `a` two-thirds of the time.
+
+Because it expands anywhere macros run, the common use is rotating landing pages inside a single offer without creating an offer per landing:
+
+```
+{spin:https://land-a.example/go|https://land-b.example/go}
+```
+
+Unlike offer-share weights, `{spin}` is **not** visitor-stable — the same visitor may hit a different value on a repeat click.
+
+### `{offer:<name\|id>}` — reference another offer
+
+`{offer:...}` is a **reference**, not an inline macro, and is only recognised as the **whole value** of a campaign's `trash_url` (Settings → Trash). It resolves to the referenced offer's own URL, which is then macro-expanded — so that offer's `{spin}`, `{click_id}`, etc. fire as usual. The reference is matched by offer UUID first, then by exact offer name (newest wins on a name collision). An unresolvable reference sends the visitor a `204`. See [Trash traffic](../campaigns/#trash-traffic).

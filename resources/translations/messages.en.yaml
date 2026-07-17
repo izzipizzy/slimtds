@@ -1,0 +1,641 @@
+password:
+  title: Change password
+  current: Current password
+  new: New password
+  confirm: Repeat new password
+  submit: Change password
+  forced_notice: You must change the password to continue
+  wrong_current: Wrong current password
+  too_short: New password must be at least {min} characters
+  mismatch: New and confirmation do not match
+  same_as_old: New password must differ from the current one
+  changed: Password changed successfully
+
+auth:
+  title: Sign in
+  subtitle: Enter operator credentials to access the system.
+  brand_eyebrow: traffic distribution system
+  brand_tagline: 'Route traffic across campaigns. Filter by geo, device, ASN. Split-test offers. Track conversions in real time.'
+  login: Sign in
+  login_field: Login
+  password_field: Password
+  submit: Sign in
+  logout: Sign out
+  wrong_credentials: Invalid login or password
+  rate_limited: Too many attempts, try again later
+  must_change_password: You must change the password on first login
+
+menu:
+  dashboard: Dashboard
+  campaigns: Campaigns
+  offers: Offers
+  flows: Flows
+  clicks: Clicks
+  conversions: Conversions
+  pixel: Pixel
+  statistics: Statistics
+  backups: Backups
+  settings: Settings
+
+dashboard:
+  auth_events: Auth activity
+
+campaigns:
+  title: Campaigns
+  copy_traffic_url: Copy traffic URL
+  url_copied: 'Traffic URL copied: {url}'
+  copy: copy
+  copied: '✓ copied'
+  filters_eyebrow: filters
+  pixel_snippet_copied: Pixel snippet copied
+  campaign_postback_copied: Campaign postback URL copied
+  postback_copied: 'Postback URL copied for {name}'
+  view_clicks: Clicks for this campaign
+  tab_settings: Settings
+  tab_pixel: Pixel
+  tab_postback: Postback
+  tab_danger: Danger zone
+  diagram: Diagram
+  diagram_hint: "Traffic flow visualization — flows → their filters → offers with weights. Dashed line: fallback to trash when no flow matches."
+  diagram_source: mermaid source
+  create: Create campaign
+  edit: Edit
+  delete: Delete
+  name: Name
+  slug: Slug
+  is_active: Active
+  sticky_offer: Pin offer to visitor
+  sticky_offer_hint: One visitor always lands on the same offer (the split holds across traffic). Turn off to pick a weighted-random offer on every click.
+  empty: No campaigns yet
+  count:
+    zero: no campaigns
+    one: '{count} campaign'
+    other: '{count} campaigns'
+  slug_hint: Leave empty for auto-generation (Base58, 6 chars)
+  slug_taken: This slug is already taken
+  notes: Notes
+  trash_mode: Trash handling
+  trash_mode_0: Blank page (200)
+  trash_mode_1: 302 Redirect (temporary)
+  trash_mode_2: 403 Forbidden
+  trash_mode_3: 404 Not Found
+  trash_mode_4: 301 Redirect (permanent)
+  trash_mode_5: 307 Redirect (preserve method)
+  trash_mode_6: Meta Refresh
+  trash_mode_7: JS Redirect
+  trash_url: Trash traffic URL
+  trash_insert_offer: ↧ insert offer…
+  search: Search
+  no_results: No results
+  created_at: Created
+  save: Save
+  empty_hint: 'Create your first campaign — slug, trash-mode type, then wire up flows/offers.'
+  pixel_no_events: No events yet — install the pixel and visit the page.
+  traffic_url: Traffic URL
+  traffic_url_hint: Send traffic to this URL — the engine routes it across this campaign's flows/offers.
+  open: open
+  stats: Stats
+  delete_short: delete
+  section_identity: Identity
+  section_routing: Routing
+  section_state: State
+  flows_intro: 'Routing rules, evaluated in order. Each flow holds filters (geo/device/...) and a list of target offers with weights — this is how "an offer is wired into a campaign".'
+  any_traffic: any traffic
+  no_target_offers: '— no target offers (terminal schema)'
+  flow_edit: edit
+  pixel_full_page: Full pixel page →
+  pixel_install_hint: 'Place this tag in {head} or before {bodyclose} on your lander/site — it counts pageviews, FingerprintJS visitors, custom events.'
+  pixel_custom_events: 'Custom events:'
+  postback_campaign_url: Campaign-level URL
+  postback_campaign_hint_1: 'One URL for the whole campaign. Fits when every offer inside belongs to {strong_one} affiliate network — slimTDS pulls the right {offer_id} from the click.'
+  postback_campaign_hint_2: 'If the campaign mixes {strong_diff} networks — use the per-offer URLs below.'
+  postback_one: one
+  postback_diff: different
+  postback_per_offer: Per-offer URLs
+  postback_per_offer_hint: 'Each offer has its own token — give the affiliate the URL below, replace {click_id_code} with their macro.'
+  postback_empty_title: Wire up an offer through a flow first
+  postback_empty_text: 'A postback token is generated per offer. Create an offer, wire it into a flow — token and URL will appear here.'
+  diagram_col_campaign: Campaign
+  diagram_col_flows: 'Flows · matched in order'
+  diagram_col_targets: 'Targets · offers with weights'
+  diagram_any_traffic: '— any traffic —'
+  diagram_trash_fallback: 'Trash · fallback'
+  diagram_trash_when: triggered when no flow matches
+  diagram_no_target: no offer target
+  diagram_deleted_offer: '— deleted offer —'
+  danger_zone: Danger zone
+  delete_warn:
+    zero: 'Deleting the campaign cascades and removes {flows} flows. Offers ({offers} in this campaign) stay — they are global. Clicks and conversions stay too (linked by UUID).'
+    one: 'Deleting the campaign cascades and removes {flows} flow. Offers ({offers} in this campaign) stay — they are global. Clicks and conversions stay too (linked by UUID).'
+    other: 'Deleting the campaign cascades and removes {flows} flows. Offers ({offers} in this campaign) stay — they are global. Clicks and conversions stay too (linked by UUID).'
+  delete_campaign: Delete campaign
+  pixel_crumb: pixel
+  pixel_last_24h: last 24h
+  pixel_last_7d: last 7d
+  pixel_last_30d: last 30d
+  pixel_embed: Embed
+  pixel_custom_event: Custom event
+  pixel_recent_title: 'Recent events (last 7d, up to 50)'
+  pixel_col_time: Time
+  pixel_col_event: Event
+  pixel_col_url: URL
+  pixel_col_visitor: Visitor
+  pixel_col_geo: Geo
+  pixel_col_device: Device
+
+offers:
+  title: Offers
+  list_title: 'Offers: {campaign}'
+  create: Create offer
+  edit: Edit offer
+  delete: Delete offer
+  name: Name
+  url: URL
+  url_hint: 'Macros: {click_id}, {campaign_slug}, {country}, {device}, {lander_domain}, {lander_button}, etc.'
+  payout_default: Default payout
+  currency: Currency
+  section_identity: Identity
+  section_payout: Payout
+  section_state: State
+  section_outgoing: Outgoing postbacks (S2S)
+  postback_urls_label: Network callback URLs
+  postback_urls_help: 'One URL per line. Macros: {macros}'
+  postback_urls_ph: 'https://network.example.com/cb?cid={click_id}&payout={payout}&status={status}'
+  status: Status
+  status_active: active
+  status_inactive: inactive
+  is_active: Active
+  postback_token: Postback token
+  rotate_token: Rotate
+  postback_hint: 'Postback: /postback?subid={click_id}&payout=&status=&token=<token>'
+  empty: No offers yet
+  empty_in_campaign: This campaign has no offers — add an offer to any flow and it'll appear here
+  campaign_view_hint: These are offers used by this campaign's flows. Offers themselves are global and may be reused across campaigns.
+  campaign_workspace_hint: Offers wired into this campaign's flows. Create and edit them in the global Offers section.
+  usage: Used in
+  delete_warn_refs:
+    one: This offer is used by {count} flow — deletion will break it.
+    other: This offer is used by {count} flows — deletion will break them.
+  usage_count:
+    zero: not used in any flow
+    one: used in {count} flow
+    other: used in {count} flows
+  flow_count:
+    zero: '{count} flows'
+    one: '{count} flow'
+    other: '{count} flows'
+  count:
+    zero: no offers
+    one: '{count} offer'
+    other: '{count} offers'
+  empty_hint: 'Create your first offer — a URL with {click_id}/{country}/{payout} macros, plus a default payout.'
+
+flows:
+  title: Flows
+  list_title: 'Flows: {campaign}'
+  create: Create flow
+  edit: Edit flow
+  delete: Delete flow
+  move_up: Move up
+  move_down: Move down
+  name: Name
+  position: Position
+  status: Status
+  status_active: active
+  status_inactive: inactive
+  section_basic: Basic
+  is_active: Active
+  weight: Weight
+  sticky_offer: Offer selection
+  sticky_inherit: Inherit campaign
+  sticky_on: Pin to visitor
+  sticky_rotate: Rotate by weight (each click)
+  sticky_hint: Overrides the campaign setting for this flow.
+  filters: Filters
+  add_group: Add OR group
+  add_condition: '+ condition'
+  remove: Remove
+  no_filters: No filters — flow matches any traffic
+  target: Target
+  target_type: Target type
+  target_type_offers: 'Offer(s) with weights'
+  target_type_none: 'None (for 403/404/stop)'
+  offers_list: 'Offers and weights (%)'
+  weights_sum_warning: Sum of weights is not 100 — allowed but unusual
+  add_offer: '+ add offer'
+  no_offers: No offers in this campaign yet — create an offer first
+  schema: 'Schema (response type)'
+  schema_config: Settings
+  js_mode: JS mode
+  js_mode_replace: replace · no history
+  js_mode_assign: assign · keep history
+  delay_ms: Delay (ms)
+  raw_preview: raw filters preview
+  body: Response body
+  status_code: HTTP status
+  url: URL
+  redirect_url: Redirect URL
+  redirect_url_hint: 'Where to redirect when no offer target is set. Supports macros {country}, {device}, {click_id} etc.'
+  count:
+    zero: no flows
+    one: '{count} flow'
+    other: '{count} flows'
+  empty_hint: 'Without a flow, traffic falls through to trash-mode. Create your first flow — geo/device filters + a list of offers with weights.'
+
+schemas:
+  1: HTTP 301
+  2: HTTP 302
+  3: HTTP 303
+  4: HTTP 307
+  5: HTTP 308
+  6: Meta Refresh
+  7: Double Meta Refresh
+  8: iFrame
+  9: HTML Page
+  10: Show Text
+  11: JSON
+  12: Curl Proxy
+  13: 'No Action (blank 200)'
+  14: 'HTTP Code (custom)'
+  15: Formula / Custom
+  16: JS Redirect
+
+filter_fields:
+  country: Country
+  region: Region
+  city: City
+  asn: ASN
+  device: Device
+  os: OS
+  browser: Browser
+  lang: Language
+  is_bot: Bot
+  bot_name: Bot name
+  is_uniq: Unique
+  referer: Referer
+  referer_domain: Referer domain
+  utm_source: UTM source
+  utm_medium: UTM medium
+  utm_campaign: UTM campaign
+  utm_term: UTM term
+  utm_content: UTM content
+  time_hour: 'Hour (0-23)'
+  day_of_week: 'Day of week (0=Sun, 6=Sat)'
+  ip_in_list: IP in list
+
+filter_ops:
+  eq: '='
+  neq: '!='
+  in: one of
+  not_in: none of
+  regex: regex
+  gt: '>'
+  lt: '<'
+  between: between
+  exists: exists
+
+clicks:
+  title: Clicks
+  tab: clicks
+  col:
+    time: Time
+    campaign: Campaign
+    flow: Flow
+    offer: Offer
+    visitor: Visitor
+    fp_js: Fingerprint
+    ip: IP
+    country: Country
+    region: Region
+    city: City
+    asn: ASN
+    isp: ISP
+    device: Device
+    os: OS
+    browser: Browser
+    lang: Lang
+    is_bot: Bot
+    bot_name: Bot name
+    is_uniq: Unique
+    ua: User-Agent
+    referer: Referer
+    utm_source: UTM source
+    utm_medium: UTM medium
+    utm_campaign: UTM campaign
+    lander_host: Lander
+    lander_button: Button
+    schema: Schema
+    out_url: Out URL
+    status: HTTP
+  columns_btn: Columns
+  columns_panel_title: Visible columns and order
+  columns_panel_hint: Toggle the ones you want, reorder with arrows. Stored in your session.
+  columns_save: Save
+  columns_reset: Reset
+  chart:
+    last_48h: last 48 hours
+    hourly_filtered: hourly · filtered
+  filter:
+    campaign: Campaign
+    country: Country
+    device: Device
+    bot: Bot
+    routing: Routing
+    uniq: Uniq
+    fingerprint: Fingerprint
+    referer: Referer
+    any_campaign: '— any campaign —'
+    country_ph: ru / us
+    fp_ph: exact hash
+  apply: apply
+  reset: reset
+  cancel: cancel
+  uniq_badge: uniq
+  repeat_badge: repeat
+  empty_title: No clicks in window
+  empty_text: 'Send traffic to /<slug> or drop the pixel on a lander — clicks will show up here.'
+  empty_cta: View campaigns
+  journey:
+    time: Time
+    type: Type
+    detail: Detail
+    this_click: THIS CLICK
+    pageviews: '{count} pageviews'
+    clicks: '{count} clicks'
+    conversions: '{count} conversions'
+    first_seen: 'first seen {at}'
+    player: 'player {id}'
+
+pixel:
+  title: Pixel events
+  tab: pixel events
+  col:
+    time: Time
+    campaign: Campaign
+    event_name: Event
+    page_url: Page URL
+    referer: Referer
+    visitor: Visitor
+    fp_js: FP_JS
+    ip: IP
+    country: Country
+    city: City
+    asn: ASN
+    device: Device
+    os: OS
+    browser: Browser
+    ua: User-Agent
+    screen: Screen
+    timezone: TZ
+    lang: Lang
+    props: Props
+  columns_btn: Columns
+  columns_panel_title: Visible columns and order
+  columns_panel_hint: Toggle the ones you want, reorder with arrows. Stored in your session.
+  columns_save: Save
+  columns_reset: Reset
+  chart:
+    last_48h: last 48 hours
+    hourly_filtered: hourly · filtered
+  filter:
+    campaign: Campaign
+    event: Event
+    domain: Domain
+    since: Since
+    bot: Bot
+    referer: Referer
+    any_campaign: '— any campaign —'
+    event_ph: pageview / purchase
+    domain_ph: example.com
+  apply: apply
+  reset: reset
+  cancel: cancel
+  kpi:
+    events: Events
+    unique_visitors: Unique visitors
+    unique_fp: Unique fingerprints
+    event_types: Event types
+  top_sources: Top sources
+  top_events: Top events
+  empty_title: No pixel events in window
+  empty_text: 'Place <script async src="https://slimtds.local/p.js?c=<slug>"></script> on a lander — events will show up here in real time.'
+  empty_cta: Pick a campaign
+
+filter_values:
+  is_bot:
+    yes_: 'yes, bot'
+    no_:  'no, not a bot'
+  is_uniq:
+    yes_: 'yes, unique'
+    no_:  'no, repeat'
+  dow:
+    '0': Sunday
+    '1': Monday
+    '2': Tuesday
+    '3': Wednesday
+    '4': Thursday
+    '5': Friday
+    '6': Saturday
+  placeholder:
+    select: '— select —'
+    country: '— country —'
+    device:  '— device —'
+    os:      '— OS —'
+    browser: '— browser —'
+    lang:    '— lang (ISO-2) —'
+    day:     '— day —'
+
+cmdk:
+  placeholder: Search campaigns, offers, flows…
+  hint: search
+  no_results: No results
+
+conversions:
+  title: Conversions
+  eyebrow:
+    approved: approved
+    pending: pending
+    hold: hold
+    rejected: rejected
+  filter:
+    campaign: Campaign
+    status: Status
+    any_campaign: '— any campaign —'
+    any_status: '— any —'
+  apply: apply
+  empty_title: No conversions in window
+  empty_text: 'Affiliate must send GET /postback?subid={click_id}&token=<offer_token>&payout=&status=approved. Grab the token from the offer.'
+  view_offers: View offers
+  col:
+    time: Time
+    campaign: Campaign
+    offer: Offer
+    click: Click
+    payout: Payout
+    status: Status
+    source_ip: Source IP
+    external: External
+
+statistics:
+  title: Statistics
+  any: '— all —'
+  apply: apply
+  kpi:
+    clicks: Clicks
+    unique: Unique
+    conversions: Conversions
+    payout: Payout
+  cr: 'CR:'
+  epc: 'EPC:'
+  bots: 'Bots:'
+  breadcrumb: stats
+  campaign_title: 'Stats · {name}'
+
+settings:
+  title: Settings
+  rrweb_sample_rate: Session recording sample rate (%)
+  tab:
+    general: General
+    backups: Backups
+    cron: Cron log
+    notifications: Notifications
+  retention:
+    heading: Retention (days)
+    hint: 'How many days to keep data. Changes apply on the next {cmd} run (daily at 02:00 UTC).'
+    clicks: Clicks (stats.clicks)
+    pixel_events: Pixel events (stats.pixel_events)
+    fingerprints: Fingerprints (stats.visitors_fingerprints)
+    auth_events: Auth events (core.auth_events)
+    rrweb: Session recordings (stats.rrweb_chunks)
+    bounds: 'range {min}–{max} · default {default}'
+    save: Save
+  backups:
+    eyebrow: backups
+    total_size: total size
+    latest: latest
+    working: Working…
+    new: New backup
+    hint: '{cmd} · daily cron at {time} · retention 14 days · location {dir}'
+    empty_title: No backups yet
+    empty_text: 'Run pg_dump with the button above or wait for the nightly cron task (01:00 UTC).'
+    col:
+      file: file
+      size: size
+      created: created
+      age: age
+    ago: ago
+    download: download
+    confirm_delete: 'Delete {name}?'
+    delete: delete
+  cron:
+    hint: 'Log of {cmd} runs — what ran, when, with which exit code and stdout tail. Filled automatically on every run via {app}.'
+    empty_title: Log is empty
+    empty_text: The first entry will appear after the next run of any cron task.
+    latest_title: Latest run per command
+    col:
+      command: command
+      last_run: last run
+      age: age
+      duration: duration
+      exit: exit
+    ms: ms
+    running: running
+    ok: ok
+    recent_title: Recent 50 runs
+    no_output: (no output)
+  notif:
+    eyebrow: telegram
+    configured: configured
+    not_configured: not configured
+    env_hint: 'Bot token / chat id are taken from {token} / {chat} (ENV).'
+    send_test: Send test
+    sources: Sources
+    template: Template
+    template_hint: 'Clear the field and save to restore the default template. Available macros:'
+    save: Save notifications
+
+form:
+  save: Save
+  cancel: Cancel
+  required: Required
+
+validation:
+  required: This field is required
+  min_length: Minimum {min} characters
+  max_length: Maximum {max} characters
+  pattern: Invalid format
+
+a11y:
+  close: Close
+  dismiss: Dismiss
+  move_up: Move up
+  move_down: Move down
+  menu: Menu
+  open_nav: Open navigation
+  close_nav: Close navigation
+  toggle_theme: Toggle theme
+  toggle_density: Toggle density
+
+log_switcher:
+  aria: Log views
+  shared_filters: Shared filters carried across
+  filters_kept:
+    one: '{count} filter kept'
+    other: '{count} filters kept'
+
+pagination:
+  aria: Pagination
+  prev_page: Previous page
+  next_page: Next page
+  prev: prev
+  next: next
+
+filter_opt:
+  any: '— any —'
+  all: '— all —'
+  humans_only: humans only
+  bots_incl: all (incl. bots)
+  bots_only: bots only
+  routed_only: routed only
+  trash_incl: all (incl. trash)
+  trash_only: trash only
+  uniq_only: uniq only
+  repeat: repeat
+  with_fp: with fp
+  no_fp: no fp
+  any_search: any search engine
+  non_search: non-search referers
+
+nav:
+  sessions: Sessions
+
+sessions:
+  title: Sessions
+  all_campaigns: All campaigns
+  all_domains: All domains
+  all_countries: All countries
+  all_browsers: All browsers
+  all_os: All OS
+  all_devices: All devices
+  all_sources: All sources
+  dur_all: Any length
+  source_any: With source
+  reset: Reset
+  col_started: Started
+  col_domain: Domain
+  col_ip: IP
+  col_country: Country
+  col_visitor: Visitor
+  col_fp: Fingerprint
+  col_client: Client
+  col_route: Route
+  col_events: Events
+  col_duration: Dur.
+  col_bytes: Size
+  replay: Replay
+  replay_title: Session replay
+  empty: No recorded sessions yet
+  in_clicks: clicks
+  in_pixel: pixel
+  filtered_by_fp: 'Filtered by fingerprint'
+  clear_filter: clear

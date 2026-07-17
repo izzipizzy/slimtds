@@ -1,0 +1,3 @@
+# Landing/docs live in the slimtds-site submodule mounted at site/ on the demo
+# VPS only. Exclude it so prod images (vendor stage COPY . ./) never ship it.
+site/

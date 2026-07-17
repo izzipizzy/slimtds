@@ -1,0 +1,172 @@
+---
+title: Обратный прокси
+---
+
+Обратный прокси перед slimTDS позволяет отдавать скрипт пикселя и клик-эндпоинт с собственного домена вашего лендинга, а не с хоста slimTDS. Это делает все запросы first-party, обходит ограничения cross-origin для cookie и убирает хостнейм slimTDS из вкладки сети в браузере.
+
+## Зачем проксировать
+
+Два типичных сценария:
+
+- **Пиксель как first-party** — ваш SEO-лендинг работает на `lander.example.com`. Вы проксируете `/p.js` и `/p/event` через его nginx, чтобы пиксель срабатывал в рамках собственного origin лендинга. Cookie `vu` посетителя устанавливается под доменом лендинга, обеспечивая стабильную идентичность между визитами.
+- **Клик-эндпоинт как first-party** — вы хотите, чтобы `/<slug>` (горячий путь редиректа) появлялся под доменом лендинга до того, как посетитель будет перенаправлен на оффер.
+
+Оба случая требуют корректно проброшенного реального IP клиента в slimTDS, иначе гео-таргетинг, обнаружение ботов и фингерпринтинг деградируют.
+
+---
+
+## Проброс реального IP клиента (критично)
+
+`App\Shared\RealIp` определяет IP посетителя, проходя по этим заголовкам по порядку:
+
+| Приоритет | Заголовок | Типичный источник |
+|---|---|---|
+| 1 | `X-Slim-IP` | Зарезервирован — задаётся кастомным доверенным слоем перед slimTDS |
+| 2 | `X-Real-IP` | nginx `ngx_http_realip_module` / ручной `proxy_set_header` |
+| 3 | `CF-Connecting-IP` | Прямое подключение через Cloudflare |
+| 4 | `True-Client-IP` | Альтернатива Cloudflare Enterprise |
+| 5 | `X-Forwarded-For` | Первый IP в цепочке через запятую |
+| 6 | `REMOTE_ADDR` | Последний вариант — TCP-пир (сам прокси, а не клиент) |
+
+Если вы не пробрасываете ни один из заголовков 1–5, slimTDS видит IP прокси в `REMOTE_ADDR`, и каждый посетитель выглядит так, будто пришёл с вашего прокси-сервера. Гео-фильтры, ASN-правила ботов и серверный отпечаток молча перестают работать.
+
+**Рекомендуется:** задавать `X-Real-IP $remote_addr` (nginx) или эквивалентную директиву Apache на каждой проксируемой локации.
+
+### TRUSTED_PROXIES
+
+Задайте `TRUSTED_PROXIES` в `.env` равным IP-адресу (или CIDR-диапазону) вашего прокси. FrankenPHP/Caddy использует это значение, чтобы решить, каким IP разрешено предъявлять заголовки с проброшенным IP. Без него прямое обращение к порту slimTDS с подделанным заголовком `X-Real-IP` было бы доверенным.
+
+```
+TRUSTED_PROXIES=203.0.113.10
+```
+
+Для нескольких прокси используйте список через запятую: `203.0.113.10,203.0.113.11`.
+
+### Опционально: заголовки атрибуции лендинга
+
+Когда slimTDS обрабатывает клик, `ClickHandler` читает два опциональных заголовка, чтобы записать, с какого лендинга пришёл посетитель:
+
+| Заголовок | Назначение |
+|---|---|
+| `X-Lander-Host` | Полный хостнейм лендинга, например `lander.example.com` |
+| `X-Lander-Path` | Исходный путь запроса + query, например `/play/betsson/?utm_source=google` |
+
+Они пробрасываются nginx лендинга через `proxy_set_header X-Lander-Host $host` и `proxy_set_header X-Lander-Path $request_uri`. Без них оба поля в логе клика будут `null`. Они актуальны только когда клик-эндпоинт проксируется через собственный веб-сервер лендинга — пропустите их для отдельно стоящих прокси только под пиксель.
+
+### Замечание о домене cookie
+
+Когда `/p.js` и `/p/event` отдаются под доменом лендинга (например, `lander.example.com/p.js`), cookie посетителя `vu` устанавливается под этим доменом. Клики, маршрутизируемые напрямую на `slimtds.example.com/<slug>`, устанавливают cookie под доменом slimTDS. Эти два домена не будут разделять одну cookie, поэтому идентичность посетителя опирается на FingerprintJS CE ID для повторного связывания сессий между доменами.
+
+---
+
+## Прокси для пикселя
+
+Проксируйте `/p.js` и `/p/event` через веб-сервер лендинга. Дополнительная настройка CORS не нужна — slimTDS уже возвращает заголовок `Origin` запроса обратно в `Access-Control-Allow-Origin` и обрабатывает OPTIONS-preflight на `/p/event`.
+
+### nginx
+
+```nginx
+# В блоке server для вашего лендинга
+
+location = /p.js {
+    proxy_pass         https://slimtds.example.com/p.js;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+}
+
+location = /p/event {
+    proxy_pass         https://slimtds.example.com/p/event;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+}
+```
+
+### Apache
+
+```apache
+# В блоке VirtualHost для вашего лендинга
+# Требуется: mod_proxy, mod_proxy_http, mod_remoteip
+
+ProxyPass        /p.js    https://slimtds.example.com/p.js
+ProxyPassReverse /p.js    https://slimtds.example.com/p.js
+
+ProxyPass        /p/event https://slimtds.example.com/p/event
+ProxyPassReverse /p/event https://slimtds.example.com/p/event
+
+# Проброс реального IP клиента в X-Real-IP
+RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
+
+# Альтернатива: использовать mod_remoteip для проброса через X-Forwarded-For
+# RemoteIPHeader X-Forwarded-For
+```
+
+---
+
+## Прокси для клика
+
+Проксируйте slug горячего пути напрямую, чтобы редирект выглядел исходящим с домена лендинга. Замените `/<slug>` на конкретный slug кампании или используйте префикс пути, который вы маршрутизируете в slimTDS.
+
+### nginx
+
+```nginx
+# В блоке server для вашего лендинга
+
+location /go/ {
+    # Срезает префикс /go/ и пробрасывает в slimTDS.
+    # Например, /go/aBcDeF → https://slimtds.example.com/aBcDeF
+    rewrite ^/go/(.*)$ /$1 break;
+    proxy_pass         https://slimtds.example.com;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    # Опционально: проброс атрибуции лендинга
+    proxy_set_header   X-Lander-Host    $host;
+    proxy_set_header   X-Lander-Path    $request_uri;
+}
+```
+
+Чтобы проксировать один slug без префикса:
+
+```nginx
+location = /aBcDeF {
+    proxy_pass         https://slimtds.example.com/aBcDeF;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Lander-Host    $host;
+    proxy_set_header   X-Lander-Path    $request_uri;
+}
+```
+
+### Apache
+
+```apache
+# В блоке VirtualHost для вашего лендинга
+# Требуется: mod_proxy, mod_proxy_http, mod_rewrite, mod_headers
+
+# Проксирование /go/<slug> → slimTDS /<slug>
+RewriteEngine On
+RewriteRule ^/go/(.+)$ https://slimtds.example.com/$1 [P,L]
+
+ProxyPassReverse /go/ https://slimtds.example.com/
+
+# Проброс реального IP клиента
+RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
+
+# Опционально: атрибуция лендинга
+RequestHeader set X-Lander-Host "%{HTTP_HOST}s"
+RequestHeader set X-Lander-Path "%{REQUEST_URI}s"
+```
+
+Чтобы проксировать один slug:
+
+```apache
+ProxyPass        /aBcDeF https://slimtds.example.com/aBcDeF
+ProxyPassReverse /aBcDeF https://slimtds.example.com/aBcDeF
+
+RequestHeader set X-Real-IP    "%{REMOTE_ADDR}s"
+RequestHeader set X-Lander-Host "%{HTTP_HOST}s"
+RequestHeader set X-Lander-Path "%{REQUEST_URI}s"
+```

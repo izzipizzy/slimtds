@@ -1,0 +1,56 @@
+# Standalone compose for testing the slimTDS pixel from multiple "sites".
+# Each lander serves a 3-page site (/, /about, /pricing) with the same pixel
+# pointing at the same campaign — useful for cross-domain + multi-page tests.
+#
+# Run with:
+#   docker compose -f docker-compose.pixel-test.yml up -d
+# Open in browser:
+#   https://lander-{a,b,c,d}.local
+#   https://lander-{a,b,c,d}.local/about
+#   https://lander-{a,b,c,d}.local/pricing
+# All events land in campaign `demo01` — see /admin/pixel.
+
+services:
+  lander-a:
+    image: nginx:alpine
+    volumes:
+      - ./docker/pixel-test/a:/usr/share/nginx/html:ro
+      - ./docker/pixel-test/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      dev.orbstack.domains: lander-a.local
+    networks: [pixel-test]
+    restart: unless-stopped
+
+  lander-b:
+    image: nginx:alpine
+    volumes:
+      - ./docker/pixel-test/b:/usr/share/nginx/html:ro
+      - ./docker/pixel-test/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      dev.orbstack.domains: lander-b.local
+    networks: [pixel-test]
+    restart: unless-stopped
+
+  lander-c:
+    image: nginx:alpine
+    volumes:
+      - ./docker/pixel-test/c:/usr/share/nginx/html:ro
+      - ./docker/pixel-test/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      dev.orbstack.domains: lander-c.local
+    networks: [pixel-test]
+    restart: unless-stopped
+
+  lander-d:
+    image: nginx:alpine
+    volumes:
+      - ./docker/pixel-test/d:/usr/share/nginx/html:ro
+      - ./docker/pixel-test/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      dev.orbstack.domains: lander-d.local
+    networks: [pixel-test]
+    restart: unless-stopped
+
+networks:
+  pixel-test:
+    driver: bridge

@@ -1,0 +1,44 @@
+---
+title: Migration from Keitaro
+---
+
+If you are coming from [Keitaro](https://keitaro.io/), most of what you already know maps cleanly onto slimTDS — campaigns, streams, filters, and S2S postbacks all have direct equivalents. This page translates the vocabulary and walks through moving a campaign across. slimTDS is deliberately narrower than Keitaro: it is a **single-tenant, self-hosted** router for organic and SEO traffic, not a multi-user platform with a landing-page host and network integrations. Knowing what does **not** carry over up front saves surprises.
+
+## Concept mapping
+
+| Keitaro | slimTDS | Notes |
+|---|---|---|
+| Campaign | [Campaign](../campaigns/) | The entry point; its slug is the live URL `/<slug>`. |
+| Stream | Flow | Ordered rules inside a campaign; first match wins. |
+| Offer | [Offer](../core-concepts/#global-offers) | Offers are **global** and reused across campaigns via a flow's target list. |
+| Local landing page | — (host it yourself) | slimTDS does not host or edit landers. Point an offer/redirect at your own lander URL. |
+| Filters | [Flow filters](../campaigns/#filters) | JSONB AND-within-group, OR-across-groups. Geo, device, bot, source, time/IP. |
+| Actions / redirect type | [Response schema](../core-concepts/#response-schemas) | 16 types: 301–308, meta refresh, iframe, HTML/JSON/text, curl proxy, JS redirect, etc. |
+| Split testing / rotation | Offer weights + [`{spin}`](../core-concepts/#spin--rotating-landings-in-one-offer) | Weighted, visitor-stable offer shares; `{spin}` for landing rotation inside one offer. |
+| Traffic source tokens | [Macros](../core-concepts/#macros) | `{click_id}`, `{utm_source}`, `{country}`, … substituted in URLs and postbacks. |
+| `{subid}` / click id | `{click_id}` | The UUIDv7 click identifier you pass to partners and receive back on postbacks. |
+| Bot filtering (ISP/UA) | [Bot detection](../traffic-filtering/#bot-detection) | IP · CIDR · ASN · ISP · User-Agent layers, refreshed daily. |
+| S2S postback (incoming) | [Postbacks](../postback/) | `GET`/`POST /postback`; per-offer tokens and a campaign-level catch-all. |
+| Outgoing postback | [Outgoing deliveries](../postback/) | Decoupled outbox with exponential-backoff retry. |
+| Reports | [Statistics](../getting-started/#what-you-get) | Partitioned click/conversion tables + dashboards. |
+| Bot / crawler cloaking | Trash routing | Unmatched traffic goes to `trash_mode` + `trash_url` (incl. an `{offer:…}` reference). |
+
+## What is different
+
+- **Offers are global.** In Keitaro an offer belongs to a campaign; in slimTDS the `core.offers` table has no `campaign_id`. You attach existing offers to a flow by weight, and the same offer can serve many campaigns at once.
+- **No built-in landing pages.** slimTDS routes traffic; it does not host, edit, or A/B local landers the way Keitaro does. Keep your landers where they are and reference their URLs — use [`{spin}`](../core-concepts/#spin--rotating-landings-in-one-offer) to rotate several.
+- **Single-tenant.** One operator or team per install, no user roles or multi-account panel.
+- **No offer-network catalogue or click-API imports.** Campaigns, flows, and offers are created in the admin (or seeded); there is no Keitaro-format importer.
+- **Slug-based URLs.** A campaign is reached at `/<slug>` (a 6-char Base58 string or a custom alias), not a per-domain campaign link.
+
+## Migration steps
+
+1. **Re-create offers.** Add each destination as a global offer with its URL and payout. Convert Keitaro tokens in the URL to [slimTDS macros](../core-concepts/#macros) (e.g. Keitaro `{subid}` → `{click_id}`).
+2. **Create the campaign.** Give it a name and, if you want to preserve inbound links, a custom alias matching `^[a-zA-Z0-9]{3,16}$` as the slug.
+3. **Rebuild streams as flows.** For each Keitaro stream, add a flow, translate its filters into filter groups, attach the target offers with weights, and pick a response schema. Order flows most-specific first; leave a catch-all flow with empty filters last.
+4. **Set trash routing.** Map Keitaro's "no stream matched" behaviour to the campaign's `trash_mode`/`trash_url` — optionally an [`{offer:…}` reference](../campaigns/#trash-traffic) to fall through to an existing offer.
+5. **Wire postbacks.** Configure your partner to call slimTDS's [`/postback`](../postback/) with the `{click_id}` you passed out. For outgoing S2S, set up the outbound postback template with macros.
+6. **Repoint traffic.** Update your SEO landers / sources to the new `/<slug>` URL (embed the [pixel](../pixel/) on landers to get events and [session replays](../replays/)).
+7. **Verify.** Send test clicks per geo/device, confirm they land on the intended offer, then fire a test postback and check the conversion appears.
+
+Because there is no bulk importer, migrate one campaign at a time and validate it end to end before moving the next.

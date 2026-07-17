@@ -1,0 +1,26 @@
+{
+    frankenphp {
+        worker {
+            file /app/config/frankenphp/worker.php
+            watch
+            num 8
+        }
+    }
+    auto_https off
+    admin off
+}
+
+:80 {
+    root * /app/public
+    encode zstd gzip
+
+    @static path /assets/* /favicon.ico /robots.txt
+    handle @static {
+        file_server
+    }
+
+    @pjs path /p.js
+    header @pjs Access-Control-Allow-Origin *
+
+    php_server
+}

@@ -1,0 +1,12 @@
+/* slimTDS brand accent — terracotta/burnt-orange from the chip-mark */
+:root {
+  --sl-color-accent-low: #3a1a0c;
+  --sl-color-accent: #b54f17;
+  --sl-color-accent-high: #f0c4a0;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #3a1a0c;
+  --sl-color-accent: #d9713e;
+  --sl-color-accent-high: #f0c4a0;
+}

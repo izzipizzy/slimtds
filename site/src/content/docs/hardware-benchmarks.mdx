@@ -1,0 +1,79 @@
+---
+title: Hardware & Benchmarks
+description: Minimum and recommended hardware for self-hosting slimTDS, plus engine throughput benchmarks.
+---
+
+slimTDS is deliberately lightweight: a single FrankenPHP process (worker mode) plus PostgreSQL. There is no Redis, no message queue, and no separate PHP-FPM pool. That keeps the footprint small and the hardware requirements modest.
+
+## Minimum requirements
+
+| Resource | Minimum | Recommended |
+|---|---|---|
+| CPU | 1 vCPU | 2–4 vCPU |
+| RAM | 1 GB | 2–4 GB |
+| Disk | 10 GB SSD | 20 GB+ SSD (see retention) |
+| OS | Linux with Docker + Docker Compose | same |
+| PostgreSQL | 18 (bundled in Compose) | 18 |
+
+On 1 GB RAM, lower the FrankenPHP worker count (`num` in the Caddyfile) to about 2 and keep an eye on PostgreSQL `shared_buffers`. 2 GB gives comfortable headroom for the default 8 workers.
+
+### Disk & retention
+
+The database is the main disk consumer, and it grows with traffic:
+
+- **`stats.clicks`** — one row per click (RANGE-partitioned monthly, BRIN-indexed).
+- **`stats.pixel_events`** — one row per pixel event (partitioned).
+- **`stats.rrweb_chunks`** — session-replay recordings, if you enable them. This is by far the largest consumer — on the order of **~0.5 GB/day** at moderate traffic.
+
+Partitions rotate monthly and old ones are dropped past the retention window (the `partitions:rotate` cron). If you turn on session replays, size the disk for your recording volume or shorten retention.
+
+## Benchmarks
+
+### Method
+
+- **Hardware:** 4 vCPU / 16 GB VPS, PostgreSQL 18.
+- **Server:** FrankenPHP worker mode, 8 workers.
+- **Tool:** `wrk`, keep-alive connections, real browser User-Agent.
+- **Endpoint:** the engine hot-path `GET /<slug>`, which runs the full pipeline — visitor resolution, GeoIP lookup, bot detection, device detection, flow matching, and click logging (one `INSERT` per request).
+- **Caveat:** the load generator ran on the *same host*, competing with the server for CPU. On a dedicated box the numbers are higher — treat these as a conservative floor.
+
+### Results (worker mode)
+
+| Concurrency | Throughput | p50 | p90 | p99 |
+|---|---|---|---|---|
+| 20 | ~610 req/s | 32 ms | 42 ms | 57 ms |
+| 50 | ~635 req/s | 76 ms | 91 ms | 122 ms |
+
+Throughput plateaus around **635 req/s** with the box saturated (and the load generator sharing it). That is roughly **50 million clicks/day** of headroom on a small 4-core VPS — for the *full* pipeline, including the per-click database write.
+
+### Where the time goes
+
+PostgreSQL is **not** the bottleneck: total database time is about **1.4 ms per request** (the click `INSERT` is ~0.8 ms). Everything else is PHP — routing plus the engine pipeline — served from a warm worker process.
+
+:::note[Make sure worker mode is on]
+FrankenPHP worker mode bootstraps the application once and reuses it across requests. Running in classic mode instead (a full bootstrap per request) is roughly **25× slower** on the same hardware — about **24 req/s vs ~635 req/s** in our tests. The `worker` file in each Caddyfile must point at the script `php_server` serves (`public/index.php`); see [Deployment](/docs/deployment/).
+:::
+
+## Run it yourself
+
+slimTDS ships a benchmark helper. With the stack up (`make up`), point it at any active campaign slug:
+
+```bash
+make benchmark SLUG=your-slug
+# tune the load:
+CONNS=100 DURATION=30s make benchmark SLUG=your-slug
+```
+
+It runs the [fortio](https://github.com/fortio/fortio) load tester in a throwaway container — nothing to install, and the image is multi-arch so it works on Apple Silicon as well as amd64 servers. It hits the engine hot-path and prints throughput, latency percentiles and the response-code split:
+
+```
+Throughput : 2416.1 qps
+Latency percentiles:
+  p50%      6.36 ms
+  p90%     14.30 ms
+  p99%     23.24 ms
+```
+
+:::caution
+Every request logs a click to `stats.clicks`, so benchmark a dev/staging instance or a throwaway slug — **not your live money-path**. And make sure worker mode is engaged, or you are measuring per-request bootstrap instead of the engine.
+:::

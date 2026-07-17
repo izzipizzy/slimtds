@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      # db-test/slimtds_test to match pest.xml's forced DB_DSN and phinx's 'test' env.
+      # GitHub-hosted runners run the job on the host, so the service is published on
+      # localhost:5432 and we alias db-test→127.0.0.1 via /etc/hosts (see step below).
+      db-test:
+        image: postgres:18-alpine
+        env: { POSTGRES_DB: slimtds_test, POSTGRES_USER: slimtds, POSTGRES_PASSWORD: slimtds }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U slimtds -d slimtds_test" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      # Only partitions:rotate (bin/console) reads this; the pest suites use pest.xml.
+      DB_DSN: pgsql:host=db-test;port=5432;dbname=slimtds_test
+      DB_USER: slimtds
+      DB_PASSWORD: slimtds
+      APP_SECRET: test-secret-32-bytes-long-string
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "127.0.0.1 db-test" | sudo tee -a /etc/hosts
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, intl, mbstring, sodium, sockets, gd
+          coverage: none
+          ini-values: variables_order=EGPCS   # populate $_ENV from env (phinx.php/Pest read $_ENV)
+      - run: |
+          composer install --no-progress --no-scripts \
+            || { sleep 15; composer install --no-progress --no-scripts; } \
+            || { sleep 30; composer install --prefer-source --no-progress --no-scripts; }
+      - run: composer validate --strict
+      - run: vendor/bin/phpstan analyse --memory-limit=512M
+      - run: vendor/bin/phinx migrate -c phinx.php -e test
+      - run: php bin/console partitions:rotate
+      - run: ./vendor/bin/pest --testsuite=Unit
+      - run: ./vendor/bin/pest --testsuite=Integration
+      - run: ./vendor/bin/pest --testsuite=Arch

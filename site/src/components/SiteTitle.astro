@@ -1,0 +1,49 @@
+---
+/**
+ * Override: render the default Starlight site title, then append a small
+ * version badge resolved from the parent repo's latest git tag.
+ * The version is injected by astro.config.mjs as PUBLIC_DOCS_VERSION.
+ */
+import Default from '@astrojs/starlight/components/SiteTitle.astro';
+
+const version = import.meta.env.PUBLIC_DOCS_VERSION;
+
+// Language-preserving link back to the marketing site: RU docs → /ru/, else → /.
+const isRu = Astro.locals.starlightRoute?.locale === 'ru';
+const siteHref = isRu ? '/ru/' : '/';
+const siteLabel = isRu ? 'Сайт' : 'Site';
+---
+
+<Default><slot /></Default>
+{version && <span class="version-badge" translate="no">{version}</span>}
+<a class="site-link" href={siteHref}>{siteLabel} <span aria-hidden="true">↗</span></a>
+
+<style>
+  @layer starlight.core {
+    .version-badge {
+      align-self: center;
+      margin-inline-start: 0.5rem;
+      padding: 0.05rem 0.4rem;
+      border: 1px solid var(--sl-color-hairline);
+      border-radius: 999px;
+      font-size: var(--sl-text-xs);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--sl-color-gray-2);
+      white-space: nowrap;
+    }
+
+    .site-link {
+      align-self: center;
+      margin-inline-start: 0.5rem;
+      font-size: var(--sl-text-xs);
+      color: var(--sl-color-gray-3);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .site-link:hover {
+      color: var(--sl-color-white);
+    }
+  }
+</style>

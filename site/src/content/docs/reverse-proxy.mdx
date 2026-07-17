@@ -1,0 +1,172 @@
+---
+title: Reverse Proxy
+---
+
+A reverse proxy in front of slimTDS lets you serve the pixel script and click endpoint from your lander's own domain rather than from the slimTDS host. This keeps all requests first-party, avoids cross-origin cookie restrictions, and removes the slimTDS hostname from the browser's network tab.
+
+## Why proxy
+
+Two common setups:
+
+- **Pixel first-party** — your SEO lander site runs on `lander.example.com`. You proxy `/p.js` and `/p/event` through its nginx so the pixel fires under the lander's own origin. The visitor's `vu` cookie is set under the lander domain, giving stable cross-visit identity.
+- **Click endpoint first-party** — you want `/<slug>` (the redirect hot-path) to appear under the lander's domain before the visitor is redirected to the offer.
+
+Both cases require you to forward the real client IP to slimTDS correctly, or geo-targeting, bot detection, and fingerprinting will degrade.
+
+---
+
+## Forwarding the real client IP (critical)
+
+`App\Shared\RealIp` resolves the visitor's IP by walking these headers in order:
+
+| Priority | Header | Typical source |
+|---|---|---|
+| 1 | `X-Slim-IP` | Reserved — set by a custom trusted layer before slimTDS |
+| 2 | `X-Real-IP` | nginx `ngx_http_realip_module` / manual `proxy_set_header` |
+| 3 | `CF-Connecting-IP` | Cloudflare direct connection |
+| 4 | `True-Client-IP` | Cloudflare Enterprise alternative |
+| 5 | `X-Forwarded-For` | First IP in the comma-separated chain |
+| 6 | `REMOTE_ADDR` | Last resort — the TCP peer (the proxy itself, not the client) |
+
+If you do not forward any of headers 1–5, slimTDS sees the proxy's IP in `REMOTE_ADDR` and every visitor looks like it came from your proxy server. Geo filters, ASN bot rules, and the server-side fingerprint all fail silently.
+
+**Recommended:** set `X-Real-IP $remote_addr` (nginx) or the equivalent Apache directive on every proxied location.
+
+### TRUSTED_PROXIES
+
+Set `TRUSTED_PROXIES` in `.env` to the IP address (or CIDR range) of your proxy. FrankenPHP/Caddy uses this value to decide which IPs are allowed to present forwarded-IP headers. Without it, a direct hit to the slimTDS port with a forged `X-Real-IP` header would be trusted.
+
+```
+TRUSTED_PROXIES=203.0.113.10
+```
+
+For multiple proxies use a comma-separated list: `203.0.113.10,203.0.113.11`.
+
+### Optional: lander attribution headers
+
+When slimTDS processes a click, `ClickHandler` reads two optional headers to record which lander page the visitor came from:
+
+| Header | Purpose |
+|---|---|
+| `X-Lander-Host` | Full hostname of the lander, e.g. `lander.example.com` |
+| `X-Lander-Path` | Original request path + query, e.g. `/play/betsson/?utm_source=google` |
+
+These are forwarded by the lander nginx with `proxy_set_header X-Lander-Host $host` and `proxy_set_header X-Lander-Path $request_uri`. Without them both fields are `null` in the click log. They are only relevant when the click endpoint is proxied through the lander's own web server — skip them when you proxy only the pixel.
+
+### Cookie domain note
+
+When `/p.js` and `/p/event` are served under the lander's domain (e.g. `lander.example.com/p.js`), the `vu` visitor cookie is set under that domain. Clicks routed directly to `slimtds.example.com/<slug>` set the cookie under the slimTDS domain. The two domains will not share the same cookie, so visitor identity relies on the FingerprintJS CE ID to re-join sessions across domains.
+
+---
+
+## Pixel proxy
+
+Proxy `/p.js` and `/p/event` through the lander's web server. No extra CORS configuration is needed — slimTDS already reflects the request `Origin` in `Access-Control-Allow-Origin` and handles the OPTIONS preflight at `/p/event`.
+
+### nginx
+
+```nginx
+# In the server block for your lander site
+
+location = /p.js {
+    proxy_pass         https://slimtds.example.com/p.js;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+}
+
+location = /p/event {
+    proxy_pass         https://slimtds.example.com/p/event;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+}
+```
+
+### Apache
+
+```apache
+# In the VirtualHost block for your lander site
+# Requires: mod_proxy, mod_proxy_http, mod_remoteip
+
+ProxyPass        /p.js    https://slimtds.example.com/p.js
+ProxyPassReverse /p.js    https://slimtds.example.com/p.js
+
+ProxyPass        /p/event https://slimtds.example.com/p/event
+ProxyPassReverse /p/event https://slimtds.example.com/p/event
+
+# Forward real client IP in X-Real-IP
+RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
+
+# Alternative: use mod_remoteip to forward via X-Forwarded-For
+# RemoteIPHeader X-Forwarded-For
+```
+
+---
+
+## Click proxy
+
+Proxy the hot-path slug directly so the redirect appears to originate from the lander's domain. Replace `/<slug>` with the specific campaign slug or use a path prefix that you route to slimTDS.
+
+### nginx
+
+```nginx
+# In the server block for your lander site
+
+location /go/ {
+    # Strips /go/ prefix and forwards to slimTDS.
+    # E.g. /go/aBcDeF → https://slimtds.example.com/aBcDeF
+    rewrite ^/go/(.*)$ /$1 break;
+    proxy_pass         https://slimtds.example.com;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    # Optional: forward lander attribution
+    proxy_set_header   X-Lander-Host    $host;
+    proxy_set_header   X-Lander-Path    $request_uri;
+}
+```
+
+To proxy a single slug without a prefix:
+
+```nginx
+location = /aBcDeF {
+    proxy_pass         https://slimtds.example.com/aBcDeF;
+    proxy_set_header   Host             slimtds.example.com;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Lander-Host    $host;
+    proxy_set_header   X-Lander-Path    $request_uri;
+}
+```
+
+### Apache
+
+```apache
+# In the VirtualHost block for your lander site
+# Requires: mod_proxy, mod_proxy_http, mod_rewrite, mod_headers
+
+# Proxy /go/<slug> → slimTDS /<slug>
+RewriteEngine On
+RewriteRule ^/go/(.+)$ https://slimtds.example.com/$1 [P,L]
+
+ProxyPassReverse /go/ https://slimtds.example.com/
+
+# Forward real client IP
+RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
+
+# Optional: lander attribution
+RequestHeader set X-Lander-Host "%{HTTP_HOST}s"
+RequestHeader set X-Lander-Path "%{REQUEST_URI}s"
+```
+
+To proxy a single slug:
+
+```apache
+ProxyPass        /aBcDeF https://slimtds.example.com/aBcDeF
+ProxyPassReverse /aBcDeF https://slimtds.example.com/aBcDeF
+
+RequestHeader set X-Real-IP    "%{REMOTE_ADDR}s"
+RequestHeader set X-Lander-Host "%{HTTP_HOST}s"
+RequestHeader set X-Lander-Path "%{REQUEST_URI}s"
+```

@@ -1,0 +1,55 @@
+# supercronic crontab — slimTDS periodic jobs
+# M1: partitions + rate_limits cleanup
+# M2 will add: bots:update, geoip:update, db:vacuum
+# M3 will add: db:backup, telegram:digest
+#
+# Format: min hour day-of-month month day-of-week COMMAND
+
+# Create future partitions and drop expired ones (every day at 02:00 UTC).
+# Also rotates daily rrweb_chunks partitions and prunes stale rrweb_sessions rows.
+0 2 * * * /usr/local/bin/php /app/bin/console partitions:rotate
+
+# Clean up expired rate_limits buckets (weekly, Sunday 03:00 UTC)
+0 3 * * 0 /usr/local/bin/php /app/bin/console rate_limits:cleanup
+
+# Update bot IP list daily at 05:00 UTC
+0 5 * * * /usr/local/bin/php /app/bin/console bots:update
+
+# Update bot ASN + CIDR lists (brianhama + X4BNet) daily at 05:30 UTC
+30 5 * * * /usr/local/bin/php /app/bin/console bots:update-extra
+
+# Vacuum current-month stats partitions nightly at 03:30 UTC
+30 3 * * * /usr/local/bin/php /app/bin/console db:vacuum-stats
+
+# GeoIP staleness check daily at 06:00 UTC
+0 6 * * * /usr/local/bin/php /app/bin/console geoip:check
+
+# Refresh stats matview every 5 minutes
+*/5 * * * * /usr/local/bin/php /app/bin/console stats:refresh
+
+# Daily Telegram digest at 10:00 UTC
+0 10 * * * /usr/local/bin/php /app/bin/console telegram:digest
+
+# Hourly system alerts
+0 * * * * /usr/local/bin/php /app/bin/console telegram:alerts
+
+# Daily DB backup at 01:00 UTC
+0 1 * * * /usr/local/bin/php /app/bin/console db:backup
+
+# Deliver outgoing S2S postbacks every minute
+* * * * * /usr/local/bin/php /app/bin/console postback:deliver
+
+# Drain pixel_events_inbox → pixel_events. Every minute is the finest stable
+# resolution supercronic accepts in our build (6-field with seconds + @every Ns
+# both fail at runtime even when -test reports valid). The flush command runs
+# its own 5s inner loop so events surface to /admin/pixel within ~5–6 seconds.
+* * * * * /usr/local/bin/php /app/bin/console inbox:flush
+
+# Drain rrweb_inbox → gzipped rrweb_chunks + rrweb_sessions. Same 1-minute /
+# 55s inner-loop pattern as inbox:flush.
+* * * * * /usr/local/bin/php /app/bin/console rrweb:flush
+
+# Demo-only: full reset to baseline every 4 hours. On non-demo hosts demo:reset
+# exits non-zero (DEMO_MODE!=1) and `|| true` swallows it, so supercronic logs no
+# failure; on the demo VPS (DEMO_MODE=1) it performs the reset.
+0 */4 * * * /usr/local/bin/php /app/bin/console demo:reset || true

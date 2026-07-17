@@ -1,0 +1,19 @@
+{
+    "name": "slim-tds-assets",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "bun scripts/build.ts",
+        "watch": "bun --watch scripts/build.ts"
+    },
+    "devDependencies": {
+        "@tailwindcss/cli": "^4.0.0",
+        "tailwindcss": "^4.0.0",
+        "alpinejs": "^3.14.0",
+        "@fingerprintjs/fingerprintjs": "^4.5.0",
+        "echarts": "^5.5.0"
+    },
+    "dependencies": {
+        "rrweb": "^2.0.0-alpha.18"
+    }
+}

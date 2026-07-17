@@ -1,0 +1,96 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Method App\\\\Admin\\\\Form\\\\FlowForm\\:\\:validate\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Admin/Form/FlowForm.php
+
+		-
+			message: "#^Method App\\\\Admin\\\\Repository\\\\ClickRepository\\:\\:buildWhere\\(\\) has parameter \\$filters with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Admin/Repository/ClickRepository.php
+
+		-
+			message: "#^Ternary operator condition is always true\\.$#"
+			count: 3
+			path: src/Admin/Repository/ClickRepository.php
+
+		-
+			message: "#^Method App\\\\Admin\\\\Repository\\\\ConversionRepository\\:\\:buildWhere\\(\\) has parameter \\$filters with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Admin/Repository/ConversionRepository.php
+
+		-
+			message: "#^Ternary operator condition is always true\\.$#"
+			count: 1
+			path: src/Admin/Repository/ConversionRepository.php
+
+		-
+			message: "#^Method App\\\\Admin\\\\Repository\\\\Flow\\:\\:decodeJson\\(\\) has parameter \\$default with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Admin/Repository/Flow.php
+
+		-
+			message: "#^Method App\\\\Admin\\\\Repository\\\\Flow\\:\\:decodeJson\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Admin/Repository/Flow.php
+
+		-
+			message: "#^Offset 'field' on array\\{field\\: string, op\\: string, value\\: mixed\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Engine/FilterCompiler.php
+
+		-
+			message: "#^Offset 'op' on array\\{field\\: string, op\\: string, value\\: mixed\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Engine/FilterCompiler.php
+
+		-
+			message: "#^Property App\\\\Engine\\\\GeoLookup\\:\\:\\$countryReader is never read, only written\\.$#"
+			count: 1
+			path: src/Engine/GeoLookup.php
+
+		-
+			message: "#^Offset 'offer_id' on array\\{offer_id\\: string, weight\\: int\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Engine/OfferPicker.php
+
+		-
+			message: "#^Offset 'weight' on array\\{offer_id\\: string, weight\\: int\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Engine/OfferPicker.php
+
+		-
+			message: "#^Constant App\\\\Engine\\\\VisitorResolver\\:\\:FP_WINDOW_HOURS is unused\\.$#"
+			count: 1
+			path: src/Engine/VisitorResolver.php
+
+		-
+			message: "#^Ternary operator condition is always true\\.$#"
+			count: 1
+			path: src/Pixel/PixelEventRepository.php
+
+		-
+			message: "#^Function flash\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Shared/View/Helpers.php
+
+		-
+			message: "#^Function t\\(\\) has parameter \\$params with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Shared/View/Helpers.php
+
+		-
+			message: "#^Function tn\\(\\) has parameter \\$params with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Shared/View/Helpers.php
+
+		-
+			message: "#^Method App\\\\Shared\\\\View\\\\View\\:\\:withRequestContext\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Shared/View/View.php
+
+		-
+			message: "#^Property App\\\\Shared\\\\View\\\\View\\:\\:\\$flash is never read, only written\\.$#"
+			count: 1
+			path: src/Shared/View/View.php

@@ -1,0 +1,163 @@
+---
+title: Settings & Notifications
+---
+
+The `/admin/settings` page is divided into four tabs: **General**, **Backups**, **Cron log**, and **Notifications**.
+
+## General — Retention
+
+The General tab contains the data-retention configuration. Four numeric inputs let you set how many days each stats table retains data before partitions are dropped by `partitions:rotate`. Changes take effect on the next daily run of that command; see [Cron & Maintenance](../operations/) for details.
+
+| Setting key | Table | Default | Range |
+|---|---|---|---|
+| `retention_clicks_days` | `stats.clicks` | 365 days | 1–3650 |
+| `retention_pixel_events_days` | `stats.pixel_events` | 90 days | 1–3650 |
+| `retention_fingerprints_days` | `stats.visitors_fingerprints` | 30 days | 1–365 |
+| `retention_auth_events_days` | `core.auth_events` | 180 days | 30–3650 |
+
+Values are persisted to `core.settings` (key/value store). If no row exists for a key, the default is used by `partitions:rotate` at rotation time.
+
+## Backups
+
+The Backups tab shows the inventory of `pg_dump --format=custom` dump files stored at `/app/var/backups/` inside the app container. The summary strip shows count, total size, and the timestamp of the latest file.
+
+**Actions available in the UI:**
+
+- **New backup** — triggers `POST /admin/settings/backups`, which runs a `pg_dump` immediately and refreshes the list. The button is disabled while the form submits.
+- **Download** — `GET /admin/settings/backups/{name}/download` — streams the dump file to the browser.
+- **Delete** — `POST /admin/settings/backups/{name}/delete` — removes a single dump file (with a confirmation dialog).
+
+The automated daily backup runs via the `db:backup` cron at 01:00 UTC and keeps the 14 most recent days of dumps, removing older files automatically. For CLI backup and restore commands, see [Deployment Modes](../deployment/#backup-and-restore).
+
+## Cron log
+
+The Cron log tab displays the `core.cron_runs` journal, which is populated automatically by `JournaledApplication` on every `bin/console` invocation.
+
+The tab shows two views:
+
+- **Latest run per command** — one row per command name, showing the most recent `started_at`, age, duration in milliseconds, and exit code badge (`ok` / `exit N` / `running`).
+- **Recent 50 runs** — a collapsed `<details>` list of the 50 most recent runs across all commands, with the stdout tail (up to 600 characters) expandable inline.
+
+For the full cron schedule and what each command does, see [Cron & Maintenance](../operations/).
+
+## Notifications
+
+The Notifications tab configures Telegram alerts sent by the `telegram:alerts` and related cron jobs.
+
+### Telegram credentials
+
+Bot token and chat ID are read from the `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables. The tab shows a `configured` / `not configured` badge based on whether both are set. A **Send test** button (POST `/admin/settings/notifications/test`) sends a plain test message and reports success or failure — the button is disabled when Telegram is not configured.
+
+### Notification types
+
+There are four notification types, each with an enable toggle and an editable message template. Clearing the template field and saving restores the registry default. Templates use Telegram HTML (`<b>`, `<code>` tags are allowed); macro values are HTML-escaped on substitution.
+
+Settings keys follow the pattern `notif_{type}_enabled`, `notif_{type}_template`, and (where applicable) `notif_{type}_sources`.
+
+---
+
+#### `ai_click` — AI click
+
+**Label:** AI click — visitor who arrived via an AI/search source then clicked
+
+**Has Sources:** yes
+
+Fires when a click's referer is classified as an AI assistant or search engine. The **Sources** multi-select (checkboxes) lets you restrict alerts to specific engines; defaults to `chatgpt` and `google`.
+
+Available macros:
+
+| Macro | Description |
+|---|---|
+| `{emoji}` | Source emoji (🤖 AI / 🔍 search) |
+| `{source}` | Engine key (e.g. `google`, `chatgpt`) |
+| `{campaign}` | Campaign slug |
+| `{route}` | lander → button · COUNTRY · device (or "direct") |
+| `{offer_url}` | Destination offer URL (truncated) |
+| `{country}` | ISO-2 country code |
+| `{device}` | Device type |
+| `{click_id}` | Click UUID |
+| `{app_url}` | Admin base URL |
+
+---
+
+#### `ai_pixel` — AI pixel
+
+**Label:** AI pixel — pageview whose referer is an AI/search source
+
+**Has Sources:** yes
+
+Fires when a pixel pageview event's referer is classified as an AI assistant or search engine.
+
+Available macros:
+
+| Macro | Description |
+|---|---|
+| `{emoji}` | Source emoji (🤖 AI / 🔍 search) |
+| `{source}` | Engine key (e.g. `google`, `chatgpt`) |
+| `{event}` | Pixel event name (e.g. `pageview`) |
+| `{page_url}` | Page URL (truncated) |
+| `{route}` | COUNTRY · device (or "unknown") |
+| `{visitor_uuid}` | Visitor UUID (first 8 chars) |
+| `{fp_js}` | FingerprintJS id (first 10 chars) |
+| `{domain}` | Page host (url-encoded, for the admin link) |
+| `{country}` | ISO-2 country code |
+| `{device}` | Device type |
+| `{app_url}` | Admin base URL |
+
+---
+
+#### `conv_click` — Conversion attributed to a click
+
+**Label:** Conversion — postback attributed to a click
+
+**Has Sources:** no
+
+Fires when a postback is received with a valid `subid` that resolves to a click.
+
+Available macros:
+
+| Macro | Description |
+|---|---|
+| `{offer_name}` | Offer name |
+| `{status}` | Conversion status |
+| `{payout}` | Payout amount |
+| `{route}` | lander → button · COUNTRY · device |
+| `{source}` | Entry source (engine key or host or "direct") |
+| `{player_id}` | External/player id (may be empty) |
+| `{age}` | Time since click (e.g. `5m`, `2h`) |
+| `{country}` | ISO-2 country code |
+| `{device}` | Device type |
+| `{click_id}` | Click UUID |
+| `{app_url}` | Admin base URL |
+
+---
+
+#### `conv_ping` — Campaign ping
+
+**Label:** Campaign ping — campaign-token postback without a click id
+
+**Has Sources:** no
+
+Fires when a postback is received using a campaign-level catch-all token but without a `subid`, so the conversion cannot be attributed to a specific click.
+
+Available macros:
+
+| Macro | Description |
+|---|---|
+| `{campaign}` | Campaign name |
+| `{slug}` | Campaign slug |
+| `{status}` | Conversion status |
+| `{player_id}` | External/player id (may be empty) |
+| `{ip}` | Source IP |
+| `{payout}` | Payout amount |
+| `{app_url}` | Admin base URL |
+
+---
+
+### Sources
+
+The Sources multi-select (shown for `ai_click` and `ai_pixel`) lists all engines registered in `SearchEngine::ENGINES`. The full list, in display order:
+
+`chatgpt`, `perplexity`, `claude`, `gemini`, `copilot`, `google`, `bing`, `baidu`, `yandex`, `duckduckgo`, `yahoo`, `naver`, `ecosia`, `brave`, `qwant`, `seznam`, `startpage`
+
+Selected engine keys are stored as a JSON array in `core.settings` under `notif_{type}_sources`.

@@ -1,0 +1,657 @@
+password:
+  title: Смена пароля
+  current: Текущий пароль
+  new: Новый пароль
+  confirm: Повторите новый пароль
+  submit: Сменить пароль
+  forced_notice: Для продолжения работы смените пароль
+  wrong_current: Неверный текущий пароль
+  too_short: Новый пароль должен быть не короче {min} символов
+  mismatch: Новый пароль и подтверждение не совпадают
+  same_as_old: Новый пароль должен отличаться от текущего
+  changed: Пароль успешно изменён
+
+auth:
+  title: Вход
+  subtitle: Введите учётные данные оператора для входа в систему.
+  brand_eyebrow: система распределения трафика
+  brand_tagline: 'Маршрутизация трафика по кампаниям. Фильтрация по гео, устройству, ASN. Сплит-тесты оферов. Отслеживание конверсий в реальном времени.'
+  login: Вход
+  login_field: Логин
+  password_field: Пароль
+  submit: Войти
+  logout: Выход
+  wrong_credentials: Неверный логин или пароль
+  rate_limited: Слишком много попыток, попробуйте позже
+  must_change_password: Необходимо сменить пароль при первом входе
+
+menu:
+  dashboard: Панель
+  campaigns: Кампании
+  offers: Оферы
+  flows: Потоки
+  clicks: Клики
+  conversions: Конверсии
+  pixel: Пиксель
+  statistics: Статистика
+  backups: Бэкапы
+  settings: Настройки
+
+dashboard:
+  auth_events: Активность входа
+
+campaigns:
+  title: Кампании
+  copy_traffic_url: Копировать traffic URL
+  url_copied: 'Traffic URL скопирован: {url}'
+  copy: копировать
+  copied: '✓ скопировано'
+  filters_eyebrow: фильтры
+  pixel_snippet_copied: Сниппет пикселя скопирован
+  campaign_postback_copied: Постбэк-URL кампании скопирован
+  postback_copied: 'Постбэк-URL скопирован для {name}'
+  view_clicks: Клики этой кампании
+  tab_settings: Настройки
+  tab_pixel: Пиксель
+  tab_postback: Postback
+  tab_danger: Опасная зона
+  diagram: Схема
+  diagram_hint: Визуализация маршрута трафика — потоки → их фильтры → офферы с весами. Пунктиром — fallback в trash, если ни один поток не сматчился.
+  diagram_source: mermaid-исходник
+  create: Создать кампанию
+  edit: Редактировать
+  delete: Удалить
+  name: Название
+  slug: Идентификатор
+  is_active: Активна
+  sticky_offer: Закреплять оффер за визитором
+  sticky_offer_hint: Один визитор всегда попадает на один оффер (сплит держится на трафике). Выключи — и оффер выбирается взвешенным рандомом на каждый клик.
+  empty: Кампаний пока нет
+  count:
+    zero: нет кампаний
+    one: '{count} кампания'
+    few: '{count} кампании'
+    many: '{count} кампаний'
+    other: '{count} кампаний'
+  slug_hint: Оставьте пустым для автогенерации (Base58, 6 символов)
+  slug_taken: Этот идентификатор уже используется
+  notes: Заметки
+  trash_mode: Мусорные запросы
+  trash_mode_0: Белая страница (200)
+  trash_mode_1: 302 Redirect (временный)
+  trash_mode_2: 403 Forbidden
+  trash_mode_3: 404 Not Found
+  trash_mode_4: 301 Redirect (постоянный)
+  trash_mode_5: 307 Redirect (preserve method)
+  trash_mode_6: Meta Refresh
+  trash_mode_7: JS Redirect
+  trash_url: URL для мусорного трафика
+  trash_insert_offer: ↧ вставить офер…
+  search: Поиск
+  no_results: Ничего не найдено
+  created_at: Создана
+  save: Сохранить
+  empty_hint: 'Создайте первую кампанию — slug, тип trash-mode, и подключите потоки/оферы.'
+  pixel_no_events: Никаких событий пока нет — поставьте пиксель и зайдите на страницу.
+  traffic_url: Traffic URL
+  traffic_url_hint: Лей трафик на этот URL — движок сам распределит по флоу/оферам этой кампании.
+  open: открыть
+  stats: Статистика
+  delete_short: удалить
+  section_identity: Идентификация
+  section_routing: Маршрутизация
+  section_state: Состояние
+  flows_intro: 'Правила распределения. Проверяются по порядку. Каждый флоу содержит фильтры (geo/device/...) и список целевых оферов с весами — это как «офер подключается к кампании».'
+  any_traffic: любой трафик
+  no_target_offers: '— нет целевых оферов (terminal schema)'
+  flow_edit: edit
+  pixel_full_page: На полную страницу пикселя →
+  pixel_install_hint: 'Поставьте этот тег в {head} или перед {bodyclose} на ленде/сайте — будет считать pageview, FingerprintJS-визиторов, custom events.'
+  pixel_custom_events: 'Custom events:'
+  postback_campaign_url: URL уровня кампании
+  postback_campaign_hint_1: 'Один URL для всей кампании. Подходит когда все оферы внутри принадлежат {strong_one} партнёрке — slimTDS сам подтянет нужный {offer_id} из клика.'
+  postback_campaign_hint_2: 'Если в кампании {strong_diff} партнёрки — используйте per-offer URL''ы ниже.'
+  postback_one: одной
+  postback_diff: разные
+  postback_per_offer: Per-offer URL'ы
+  postback_per_offer_hint: 'Каждый офер имеет свой токен — отдайте партнёрке URL ниже, замените {click_id_code} на их макрос.'
+  postback_empty_title: Сначала подключите офер через флоу
+  postback_empty_text: 'Postback-токен генерится для каждого офера. Создайте офер, подключите его в флоу — токен и URL появятся здесь.'
+  diagram_col_campaign: Campaign
+  diagram_col_flows: 'Потоки · в порядке проверки'
+  diagram_col_targets: 'Цели · оферы с весами'
+  diagram_any_traffic: '— любой трафик —'
+  diagram_trash_fallback: 'Trash · fallback'
+  diagram_trash_when: срабатывает, когда ни один поток не сматчился
+  diagram_no_target: нет целевого офера
+  diagram_deleted_offer: '— удалённый офер —'
+  danger_zone: Опасная зона
+  pixel_crumb: пиксель
+  pixel_last_24h: за 24ч
+  pixel_last_7d: за 7д
+  pixel_last_30d: за 30д
+  pixel_embed: Встройка
+  pixel_custom_event: Кастомное событие
+  pixel_recent_title: 'Недавние события (последние 7д, до 50)'
+  pixel_col_time: Время
+  pixel_col_event: Событие
+  pixel_col_url: URL
+  pixel_col_visitor: Visitor
+  pixel_col_geo: Гео
+  pixel_col_device: Устройство
+  delete_warn:
+    zero: 'Удаление кампании каскадно убьёт {flows} флоу. Оферы ({offers} в кампании) останутся — они глобальные. Клики и конверсии тоже останутся (привязаны по UUID).'
+    one: 'Удаление кампании каскадно убьёт {flows} флоу. Оферы ({offers} в кампании) останутся — они глобальные. Клики и конверсии тоже останутся (привязаны по UUID).'
+    few: 'Удаление кампании каскадно убьёт {flows} флоу. Оферы ({offers} в кампании) останутся — они глобальные. Клики и конверсии тоже останутся (привязаны по UUID).'
+    many: 'Удаление кампании каскадно убьёт {flows} флоу. Оферы ({offers} в кампании) останутся — они глобальные. Клики и конверсии тоже останутся (привязаны по UUID).'
+    other: 'Удаление кампании каскадно убьёт {flows} флоу. Оферы ({offers} в кампании) останутся — они глобальные. Клики и конверсии тоже останутся (привязаны по UUID).'
+  delete_campaign: Удалить кампанию
+
+offers:
+  title: Оферы
+  list_title: 'Оферы: {campaign}'
+  create: Создать офер
+  edit: Редактировать офер
+  delete: Удалить офер
+  name: Название
+  url: URL
+  url_hint: 'Макросы: {click_id}, {campaign_slug}, {country}, {device}, {lander_domain}, {lander_button} и т.п.'
+  payout_default: Дефолтный payout
+  currency: Валюта
+  section_identity: Идентификация
+  section_payout: Выплата
+  section_state: Состояние
+  section_outgoing: Исходящие постбэки (S2S)
+  postback_urls_label: URL колбэков сети
+  postback_urls_help: 'Один URL в строке. Макросы: {macros}'
+  postback_urls_ph: 'https://network.example.com/cb?cid={click_id}&payout={payout}&status={status}'
+  status: Статус
+  status_active: активен
+  status_inactive: неактивен
+  is_active: Активен
+  postback_token: Postback-токен
+  rotate_token: Сгенерировать новый
+  postback_hint: 'Постбэк: /postback?subid={click_id}&payout=&status=&token=<token>'
+  empty: Оферов пока нет
+  empty_in_campaign: В этой кампании нет оферов — добавьте офер в любой флоу и он появится здесь
+  campaign_view_hint: Это оферы, которые задействованы в флоу этой кампании. Сами оферы — глобальные, могут использоваться в нескольких кампаниях.
+  campaign_workspace_hint: Здесь видны оферы, подключённые к флоу этой кампании. Создавать и редактировать — в разделе «Оферы».
+  usage: Используется
+  delete_warn_refs:
+    one: Этот офер используется в {count} флоу — удаление сломает их.
+    few: Этот офер используется в {count} флоу — удаление сломает их.
+    many: Этот офер используется в {count} флоу — удаление сломает их.
+    other: Этот офер используется в {count} флоу — удаление сломает их.
+  usage_count:
+    zero: не используется в флоу
+    one: используется в {count} флоу
+    few: используется в {count} флоу
+    many: используется в {count} флоу
+    other: используется в {count} флоу
+  flow_count:
+    zero: '{count} флоу'
+    one: '{count} флоу'
+    few: '{count} флоу'
+    many: '{count} флоу'
+    other: '{count} флоу'
+  count:
+    zero: нет оферов
+    one: '{count} офер'
+    few: '{count} офера'
+    many: '{count} оферов'
+    other: '{count} оферов'
+  empty_hint: 'Создайте первый офер — URL с макросами {click_id}/{country}/{payout}, и payout по умолчанию.'
+
+flows:
+  title: Потоки
+  list_title: 'Потоки: {campaign}'
+  create: Создать поток
+  edit: Редактировать поток
+  delete: Удалить поток
+  move_up: Поднять выше
+  move_down: Опустить ниже
+  name: Название
+  position: Позиция
+  status: Статус
+  status_active: активен
+  status_inactive: неактивен
+  section_basic: Основное
+  is_active: Активен
+  weight: Вес
+  sticky_offer: Выбор оффера
+  sticky_inherit: Как в кампании
+  sticky_on: Закреплять за визитором
+  sticky_rotate: Ротация по весам (каждый клик)
+  sticky_hint: Переопределяет настройку кампании для этого потока.
+  filters: Фильтры
+  add_group: Добавить OR-группу
+  add_condition: '+  условие'
+  remove: Удалить
+  no_filters: Фильтры не заданы — поток совпадёт для любого трафика
+  target: Цель
+  target_type: Тип цели
+  target_type_offers: 'Офер(ы) с весами'
+  target_type_none: 'Без цели (для 403/404/stop)'
+  offers_list: 'Оферы и веса (%)'
+  weights_sum_warning: Сумма весов не равна 100 — это допустимо, но необычно
+  add_offer: '+ добавить офер'
+  no_offers: В этой кампании нет оферов — сначала создайте офер
+  schema: 'Schema (тип ответа)'
+  schema_config: Настройки
+  js_mode: Режим JS
+  js_mode_replace: replace · без истории
+  js_mode_assign: assign · с историей
+  delay_ms: Задержка (мс)
+  raw_preview: исходный JSON фильтров
+  body: Тело ответа
+  status_code: HTTP статус
+  url: URL
+  redirect_url: URL для редиректа
+  redirect_url_hint: 'Куда редиректить когда нет цели-офера. Поддерживает макросы {country}, {device}, {click_id} и т.п.'
+  count:
+    zero: нет потоков
+    one: '{count} поток'
+    few: '{count} потока'
+    many: '{count} потоков'
+    other: '{count} потоков'
+  empty_hint: 'Без флоу трафик уйдёт в trash-mode. Создайте первый флоу — фильтры по гео/устройству + список оферов с весами.'
+
+schemas:
+  1: HTTP 301
+  2: HTTP 302
+  3: HTTP 303
+  4: HTTP 307
+  5: HTTP 308
+  6: Meta Refresh
+  7: Double Meta Refresh
+  8: iFrame
+  9: HTML Page
+  10: Show Text
+  11: JSON
+  12: Curl Proxy
+  13: 'No Action (blank 200)'
+  14: 'HTTP Code (custom)'
+  15: Formula / Custom
+  16: JS Redirect
+
+filter_fields:
+  country: Страна
+  region: Регион
+  city: Город
+  asn: ASN
+  device: Устройство
+  os: OS
+  browser: Браузер
+  lang: Язык
+  is_bot: Бот
+  bot_name: Имя бота
+  is_uniq: Уникальный
+  referer: Referer
+  referer_domain: Домен реферера
+  utm_source: UTM source
+  utm_medium: UTM medium
+  utm_campaign: UTM campaign
+  utm_term: UTM term
+  utm_content: UTM content
+  time_hour: 'Час (0–23)'
+  day_of_week: 'День недели (0=Вс, 6=Сб)'
+  ip_in_list: IP в списке
+
+filter_ops:
+  eq: '='
+  neq: '!='
+  in: один из
+  not_in: ни одного из
+  regex: regex
+  gt: '>'
+  lt: '<'
+  between: между
+  exists: существует
+
+clicks:
+  title: Клики
+  tab: клики
+  col:
+    time: Время
+    campaign: Кампания
+    flow: Поток
+    offer: Офер
+    visitor: Visitor
+    fp_js: Fingerprint
+    ip: IP
+    country: Страна
+    region: Регион
+    city: Город
+    asn: ASN
+    isp: ISP
+    device: Устройство
+    os: ОС
+    browser: Браузер
+    lang: Язык
+    is_bot: Бот
+    bot_name: Имя бота
+    is_uniq: Уникальный
+    ua: User-Agent
+    referer: Referer
+    utm_source: UTM source
+    utm_medium: UTM medium
+    utm_campaign: UTM campaign
+    lander_host: Лендинг
+    lander_button: Кнопка
+    schema: Schema
+    out_url: Out URL
+    status: HTTP
+  columns_btn: Колонки
+  columns_panel_title: Видимые колонки и порядок
+  columns_panel_hint: Включи нужные, перетащи стрелками для порядка. Сохранится в твоей сессии.
+  columns_save: Сохранить
+  columns_reset: Сбросить
+  chart:
+    last_48h: последние 48 часов
+    hourly_filtered: по часам · с фильтрами
+  filter:
+    campaign: Кампания
+    country: Страна
+    device: Устройство
+    bot: Бот
+    routing: Маршрутизация
+    uniq: Уник
+    fingerprint: Фингерпринт
+    referer: Referer
+    any_campaign: '— все кампании —'
+    country_ph: ru / us
+    fp_ph: точный хеш
+  apply: применить
+  reset: сбросить
+  cancel: отмена
+  uniq_badge: uniq
+  repeat_badge: repeat
+  empty_title: В этом окне нет кликов
+  empty_text: 'Лей трафик на /<slug> или поставь pixel на ленд — клики появятся здесь.'
+  empty_cta: К кампаниям
+  journey:
+    time: Время
+    type: Тип
+    detail: Детали
+    this_click: ЭТОТ КЛИК
+    pageviews: 'просмотров: {count}'
+    clicks: 'кликов: {count}'
+    conversions: 'конверсий: {count}'
+    first_seen: 'первый визит {at}'
+    player: 'игрок {id}'
+
+pixel:
+  title: События пикселя
+  tab: события пикселя
+  col:
+    time: Время
+    campaign: Кампания
+    event_name: Событие
+    page_url: URL страницы
+    referer: Referer
+    visitor: Visitor
+    fp_js: FP_JS
+    ip: IP
+    country: Страна
+    city: Город
+    asn: ASN
+    device: Устройство
+    os: ОС
+    browser: Браузер
+    ua: User-Agent
+    screen: Экран
+    timezone: TZ
+    lang: Язык
+    props: Props
+  columns_btn: Колонки
+  columns_panel_title: Видимые колонки и порядок
+  columns_panel_hint: Включи нужные, перетащи стрелками для порядка. Сохранится в твоей сессии.
+  columns_save: Сохранить
+  columns_reset: Сбросить
+  chart:
+    last_48h: последние 48 часов
+    hourly_filtered: по часам · с фильтрами
+  filter:
+    campaign: Кампания
+    event: Событие
+    domain: Домен
+    since: С момента
+    bot: Бот
+    referer: Referer
+    any_campaign: '— все кампании —'
+    event_ph: pageview / purchase
+    domain_ph: example.com
+  apply: применить
+  reset: сбросить
+  cancel: отмена
+  kpi:
+    events: События
+    unique_visitors: Уник. посетители
+    unique_fp: Уник. фингерпринты
+    event_types: Типы событий
+  top_sources: Топ источников
+  top_events: Топ событий
+  empty_title: В этом окне нет событий пикселя
+  empty_text: 'Поставьте <script async src="https://slimtds.local/p.js?c=<slug>"></script> на ленд — события появятся здесь в реальном времени.'
+  empty_cta: Выбрать кампанию
+
+filter_values:
+  is_bot:
+    yes_: 'да, бот'
+    no_:  'нет, не бот'
+  is_uniq:
+    yes_: 'да, уникальный'
+    no_:  'нет, повторный'
+  dow:
+    '0': Воскресенье
+    '1': Понедельник
+    '2': Вторник
+    '3': Среда
+    '4': Четверг
+    '5': Пятница
+    '6': Суббота
+  placeholder:
+    select: '— выбрать —'
+    country: '— страна —'
+    device:  '— устройство —'
+    os:      '— ОС —'
+    browser: '— браузер —'
+    lang:    '— язык (ISO-2) —'
+    day:     '— день —'
+
+cmdk:
+  placeholder: Поиск по кампаниям, оферам, потокам…
+  hint: поиск
+  no_results: Ничего не найдено
+
+conversions:
+  title: Конверсии
+  eyebrow:
+    approved: approved
+    pending: pending
+    hold: hold
+    rejected: rejected
+  filter:
+    campaign: Кампания
+    status: Статус
+    any_campaign: '— все кампании —'
+    any_status: '— любой —'
+  apply: применить
+  empty_title: Конверсий в окне нет
+  empty_text: 'Партнёрка должна слать GET /postback?subid={click_id}&token=<offer_token>&payout=&status=approved. Токен возьми в офере.'
+  view_offers: К оферам
+  col:
+    time: Время
+    campaign: Кампания
+    offer: Офер
+    click: Клик
+    payout: Payout
+    status: Статус
+    source_ip: IP источника
+    external: External
+
+statistics:
+  title: Статистика
+  any: '— все —'
+  apply: применить
+  kpi:
+    clicks: Клики
+    unique: Уникальные
+    conversions: Конверсии
+    payout: Payout
+  cr: 'CR:'
+  epc: 'EPC:'
+  bots: 'Боты:'
+  breadcrumb: статистика
+  campaign_title: 'Статистика · {name}'
+
+settings:
+  title: Настройки
+  rrweb_sample_rate: Доля записи сессий (%)
+  tab:
+    general: Общее
+    backups: Бэкапы
+    cron: Крон-лог
+    notifications: Уведомления
+  retention:
+    heading: Хранение (дней)
+    hint: 'Сколько дней хранить данные. Изменения применяются при следующем запуске {cmd} (раз в сутки в 02:00 UTC).'
+    clicks: Клики (stats.clicks)
+    pixel_events: События пикселя (stats.pixel_events)
+    fingerprints: Фингерпринты (stats.visitors_fingerprints)
+    auth_events: События входа (core.auth_events)
+    rrweb: Записи сессий (stats.rrweb_chunks)
+    bounds: 'диапазон {min}–{max} · по умолчанию {default}'
+    save: Сохранить
+  backups:
+    eyebrow: бэкапы
+    total_size: общий размер
+    latest: последний
+    working: Выполняется…
+    new: Новый бэкап
+    hint: '{cmd} · ежесуточный крон в {time} · хранение 14 дней · location {dir}'
+    empty_title: Бэкапов пока нет
+    empty_text: 'Запусти pg_dump кнопкой выше или дождись ночного крон-таска (01:00 UTC).'
+    col:
+      file: файл
+      size: размер
+      created: создан
+      age: возраст
+    ago: назад
+    download: скачать
+    confirm_delete: 'Удалить {name}?'
+    delete: удалить
+  cron:
+    hint: 'Журнал запусков {cmd} — что выполнялось, когда, с каким exit-кодом и stdout-tail. Заполняется автоматически на каждом запуске через {app}.'
+    empty_title: Журнал пока пуст
+    empty_text: Первая запись появится после следующего запуска любого крон-таска.
+    latest_title: Последний запуск по командам
+    col:
+      command: команда
+      last_run: запуск
+      age: возраст
+      duration: длительность
+      exit: exit
+    ms: мс
+    running: выполняется
+    ok: ok
+    recent_title: Последние 50 запусков
+    no_output: (нет вывода)
+  notif:
+    eyebrow: telegram
+    configured: настроено
+    not_configured: не настроено
+    env_hint: 'Bot token / chat id берутся из {token} / {chat} (ENV).'
+    send_test: Тест
+    sources: Источники
+    template: Шаблон
+    template_hint: 'Очистите поле и сохраните, чтобы вернуть шаблон по умолчанию. Доступные макросы:'
+    save: Сохранить уведомления
+
+form:
+  save: Сохранить
+  cancel: Отмена
+  required: Обязательное поле
+
+validation:
+  required: Поле обязательно для заполнения
+  min_length: Минимум {min} символов
+  max_length: Максимум {max} символов
+  pattern: Неверный формат
+
+a11y:
+  close: Закрыть
+  dismiss: Скрыть
+  move_up: Вверх
+  move_down: Вниз
+  menu: Меню
+  open_nav: Открыть навигацию
+  close_nav: Закрыть навигацию
+  toggle_theme: Переключить тему
+  toggle_density: Переключить плотность
+
+log_switcher:
+  aria: Журналы
+  shared_filters: Общие фильтры переносятся между журналами
+  filters_kept:
+    one: 'сохранён {count} фильтр'
+    few: 'сохранено {count} фильтра'
+    many: 'сохранено {count} фильтров'
+    other: 'сохранено {count} фильтров'
+
+pagination:
+  aria: Пагинация
+  prev_page: Предыдущая страница
+  next_page: Следующая страница
+  prev: назад
+  next: вперёд
+
+filter_opt:
+  any: '— любой —'
+  all: '— все —'
+  humans_only: только люди
+  bots_incl: все (вкл. ботов)
+  bots_only: только боты
+  routed_only: только размеченные
+  trash_incl: все (вкл. треш)
+  trash_only: только треш
+  uniq_only: только уник
+  repeat: повторные
+  with_fp: с fp
+  no_fp: без fp
+  any_search: любой поисковик
+  non_search: непоисковые рефереры
+
+nav:
+  sessions: Сессии
+
+sessions:
+  title: Сессии
+  all_campaigns: Все кампании
+  all_domains: Все домены
+  all_countries: Все страны
+  all_browsers: Все браузеры
+  all_os: Все ОС
+  all_devices: Все устройства
+  all_sources: Все источники
+  dur_all: Любая длина
+  source_any: С источником
+  reset: Сбросить
+  col_started: Начата
+  col_domain: Домен
+  col_ip: IP
+  col_country: Страна
+  col_visitor: Посетитель
+  col_fp: Фингерпринт
+  col_client: Клиент
+  col_route: Маршрут
+  col_events: События
+  col_duration: Длит.
+  col_bytes: Размер
+  replay: Воспроизвести
+  replay_title: Воспроизведение сессии
+  empty: Записанных сессий пока нет
+  in_clicks: клики
+  in_pixel: пиксель
+  filtered_by_fp: 'Фильтр по фингерпринту'
+  clear_filter: сбросить

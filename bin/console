@@ -1,0 +1,56 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Symfony\Component\Console\Application;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+if (file_exists(__DIR__ . '/../.env')) {
+    Dotenv::createImmutable(__DIR__ . '/..')->load();
+}
+
+date_default_timezone_set($_ENV['APP_TZ'] ?? 'Europe/Moscow');
+
+$container = (require __DIR__ . '/../config/di.php')();
+
+$app = new App\Shared\Cron\JournaledApplication(
+    $container->get(App\Shared\Cron\CronJournal::class),
+    'slimTDS',
+    '0.1.0',
+);
+
+/** @var list<class-string> $commands */
+$commands = [
+    App\Admin\Command\DbMigrateCommand::class,
+    App\Admin\Command\AdminInitCommand::class,
+    App\Admin\Command\AdminSetPasswordCommand::class,
+    App\Admin\Command\DbSeedCommand::class,
+    App\Admin\Command\SeedStatsCommand::class,
+    App\Admin\Command\DemoResetCommand::class,
+    App\Admin\Command\RateLimitsCleanupCommand::class,
+    App\Cron\Command\PartitionsRotateCommand::class,
+    App\Cron\Command\BotsUpdateCommand::class,
+    App\Cron\Command\BotsUpdateExtraCommand::class,
+    App\Cron\Command\DbVacuumCommand::class,
+    App\Cron\Command\GeoipCheckCommand::class,
+    App\Cron\Command\StatsRefreshCommand::class,
+    App\Cron\Command\TelegramDigestCommand::class,
+    App\Cron\Command\TelegramAlertsCommand::class,
+    App\Cron\Command\DbBackupCommand::class,
+    App\Admin\Command\DbRestoreCommand::class,
+    App\Cron\Command\PostbackDeliverCommand::class,
+    App\Cron\Command\InboxFlushCommand::class,
+    App\Cron\Command\RrwebFlushCommand::class,
+];
+
+// JournaledApplication wraps doRunCommand so every invocation lands in
+// core.cron_runs (visible at /admin/settings → Cron log) with no per-command
+// boilerplate.
+foreach ($commands as $cls) {
+    $app->add($container->get($cls));
+}
+
+$app->run();
