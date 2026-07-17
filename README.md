@@ -1,5 +1,7 @@
 # slimTDS
 
+**English** · [Русский](README.ru.md)
+
 slimTDS is a self-hosted traffic distribution system (TDS) for affiliate and
 performance marketers who want full control of their click data instead of
 routing it through a SaaS vendor. It's a modern rewrite of the classic zTDS,
@@ -15,7 +17,7 @@ signals to weighted offers through any of 15 response schemas (HTTP redirects
 Bot filtering, GeoIP lookups, incoming/outgoing postbacks, session recording
 (rrweb), and a statistics dashboard are all built in.
 
-**Live demo:** [slimtds.com](https://slimtds.com)
+**Live demo:** [slimtds.com](https://slimtds.com) — a full, open sandbox. Log in at [/admin/login](https://slimtds.com/admin/login) with **`admin` / `demo`**. Everything **resets to baseline every 4 hours**, so feel free to change anything.
 **Docs:** [slimtds.com/docs](https://slimtds.com/docs)
 
 ## Quickstart
