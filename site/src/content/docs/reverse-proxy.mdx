@@ -32,15 +32,16 @@ If you do not forward any of headers 1–5, slimTDS sees the proxy's IP in `REMO
 
 **Recommended:** set `X-Real-IP $remote_addr` (nginx) or the equivalent Apache directive on every proxied location.
 
-### TRUSTED_PROXIES
+### Header spoofing is not prevented in the application
 
-Set `TRUSTED_PROXIES` in `.env` to the IP address (or CIDR range) of your proxy. FrankenPHP/Caddy uses this value to decide which IPs are allowed to present forwarded-IP headers. Without it, a direct hit to the slimTDS port with a forged `X-Real-IP` header would be trusted.
+`App\Shared\RealIp` walks the headers above **unconditionally** — it does not check whether the request actually came from a trusted proxy. Anyone who can reach the slimTDS port directly can present a forged `X-Real-IP` and choose the IP that gets logged. Treat IP resolution as best-effort attribution for analytics, not as a security boundary.
 
-```
-TRUSTED_PROXIES=203.0.113.10
-```
+The `TRUSTED_PROXIES` key in `.env.example` does **not** change this — nothing reads it. Leave it empty.
 
-For multiple proxies use a comma-separated list: `203.0.113.10,203.0.113.11`.
+What actually protects the chain:
+
+- **Do not expose the application port to the internet.** Only your proxy should be able to reach it — bind it to loopback, keep it on the Docker network, or firewall it. This is the real mitigation.
+- **In `cf_*` modes**, `config/frankenphp/Caddyfile.cf` sets `trusted_proxies static …` with a hardcoded list of Cloudflare ranges plus `client_ip_headers CF-Connecting-IP`, so Caddy only honours that header from Cloudflare. The list is static — nothing refreshes it if Cloudflare changes its ranges.
 
 ### Optional: lander attribution headers
 

@@ -60,8 +60,6 @@ To trigger a backup manually:
 
 ```bash
 docker compose exec app php bin/console db:backup
-# or:
-make backup
 ```
 
 To restore from a dump:
@@ -74,6 +72,6 @@ docker compose exec app ls /app/var/backups/
 docker compose exec app php bin/console db:restore <filename>.dump yes
 ```
 
-Mount a host volume over `/app/var/backups/` if you need off-container copies of the dumps.
+No extra volume is needed for host-side copies: `docker-compose.yml` already bind-mounts `./var/backups` on the host to `/app/var/backups` in both the `app` and `cron` containers, so dumps land in the repository directory as they are written.
 
 ![slimTDS clicks view](../../assets/screenshots/clicks.png)

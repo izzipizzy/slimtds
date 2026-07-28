@@ -37,6 +37,13 @@ export default defineConfig({
         ru: 'Документация slimTDS',
       },
       description: 'Self-hosted Slim 4 + FrankenPHP + PostgreSQL traffic distribution system.',
+      // slimTDS session recorder (rrweb) on every docs page — campaign "site" (record-only)
+      head: [
+        { tag: 'script', attrs: { src: 'https://slimtds.com/p.js?c=site', defer: true } },
+      ],
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/izzipizzy/slimtds' },
+      ],
       defaultLocale: 'root',
       locales: {
         root: { label: 'English', lang: 'en' },
@@ -68,6 +75,7 @@ export default defineConfig({
           { slug: 'operations', label: 'Cron & Maintenance', translations: { ru: 'Cron и обслуживание' } },
         ]},
         { label: 'Deployment', translations: { ru: 'Развёртывание' }, items: [
+          { slug: 'ai-install', label: 'Install with an AI agent', translations: { ru: 'Установка через ИИ-агента' } },
           { slug: 'deployment', label: 'Deployment Modes', translations: { ru: 'Режимы развёртывания' } },
           { slug: 'reverse-proxy', label: 'Reverse Proxy', translations: { ru: 'Обратный прокси' } },
           { slug: 'hardware-benchmarks', label: 'Hardware & Benchmarks', translations: { ru: 'Железо и бенчмарки' } },

@@ -24,6 +24,10 @@ Bot filtering, GeoIP lookups, incoming/outgoing postbacks, session recording
 
 Requires Docker (≥ 24) with the Compose v2 plugin, or OrbStack on macOS.
 
+> Installing on a fresh server? Hand [`docs/AI-INSTALL-PROMPT.md`](docs/AI-INSTALL-PROMPT.md)
+> to a coding agent — it follows [`docs/AI-INSTALL.md`](docs/AI-INSTALL.md) from bare OS to a
+> smoke-tested install.
+
 ```bash
 git clone https://github.com/izzipizzy/slimtds.git
 cd slimtds

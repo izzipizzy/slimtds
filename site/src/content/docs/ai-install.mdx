@@ -1,0 +1,193 @@
+---
+title: Install with an AI agent
+description: Hand a coding agent shell access to a fresh server and let it install slimTDS end to end.
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Give a coding agent SSH access to a fresh Linux server, paste the prompt below, and answer its
+questions once. It installs Docker, builds the stack, applies migrations, creates the admin
+account, and runs a six-check smoke test before reporting back.
+
+Works with any agent that can run shell commands — Claude Code, Codex/GPT, Qwen, Kimi.
+
+## The prompt
+
+<Tabs>
+<TabItem label="English">
+
+```text
+You have SSH/root access to a fresh Linux server. Install slimTDS on it.
+
+  git clone https://github.com/izzipizzy/slimtds.git slimtds && cd slimtds
+
+Read docs/AI-INSTALL.md and follow it exactly, top to bottom.
+Ask me every question you need in ONE message up front (§1), then run to
+completion without stopping. Never print secrets. Stop and tell me if a §2
+preflight check fails — do not work around it. Finish with the §9 report.
+```
+
+</TabItem>
+<TabItem label="Русский">
+
+```text
+У тебя SSH/root-доступ к чистому Linux-серверу. Установи на него slimTDS.
+
+  git clone https://github.com/izzipizzy/slimtds.git slimtds && cd slimtds
+
+Прочитай docs/AI-INSTALL.md и выполни его точно, сверху вниз.
+Задай все вопросы ОДНИМ сообщением в начале (§1), дальше работай до конца
+без остановок. Секреты не печатай. Если падает проверка из §2 — остановись и
+скажи мне, не обходи её. Заверши отчётом из §9.
+```
+
+</TabItem>
+</Tabs>
+
+## What you need first
+
+- **A server** — 2 GB RAM and 20 GB free disk minimum, with ports 80 and 443 unused.
+- **A domain** whose A record already points at that server. Required for TLS in `direct`
+  mode; skip only when installing behind Cloudflare.
+- **Optional:** a MaxMind GeoLite2 license key — without it geo targeting silently matches
+  nothing — and a Telegram bot token plus chat ID for the digest and alerts.
+
+The agent generates the admin password and reports it once, at the end.
+
+## What the agent does
+
+The runbook it follows is `docs/AI-INSTALL.md` in the repository. Ten numbered sections,
+executed in order.
+
+<Steps>
+
+1. **Collects input** — deploy mode, domain, timezone, and the optional integrations, all in
+   one message. After that it does not interrupt you again.
+
+2. **Preflight** — distro and architecture, root access, RAM and disk, whether ports 80/443
+   are free, whether DNS already resolves to this server, and outbound connectivity. A failed
+   check stops the install rather than being worked around.
+
+3. **Installs Docker** from the official repository — not snap, not the distro `docker.io`
+   package, because Compose v2 must be available as `docker compose`.
+
+4. **OS hygiene** — opens 22/80/443 in the firewall (additive only, never a policy reset),
+   adds a 2 GB swapfile when RAM is under 2 GB, sets the host timezone.
+
+5. **Clones and configures** — `git clone`, then `make env`, which writes `.env` with a random
+   `APP_SECRET` and admin password, then the per-mode values below.
+
+6. **Starts the stack** — `make prod-up-direct` or `make prod-up-cf`. The first run builds the
+   image (Bun assets → Composer vendor → FrankenPHP runtime) and takes several minutes.
+
+7. **Initializes** — Phinx migrations, then `partitions:rotate` to create the monthly
+   partitions for the statistics tables, then `admin:init` to create the admin account.
+
+8. **Smoke test** — six checks; the install is not finished until all six pass.
+
+9. **Reports** — URL, credentials, deploy mode, which integrations are live, where backups
+   land, and the smoke-test table, including any failures.
+
+</Steps>
+
+## Deploy modes
+
+The agent asks which one you want. Pick by network topology:
+
+| Mode | Use it when |
+|---|---|
+| `direct` | The server is the public origin and Caddy obtains Let's Encrypt certificates itself. Ports 80 and 443 must be reachable. The default choice for a plain VPS. |
+| `cf_flex` | The domain is proxied through Cloudflare and plain HTTP between Cloudflare and the origin is acceptable. Caddy listens on `:80`. |
+| `cf_full` | Proxied through Cloudflare *and* the origin serves HTTPS with a Cloudflare Origin Certificate. Caddy listens on `:443`. |
+| `dev` | Local workstation only. It publishes no ports and relies on your local environment's domain routing, so it is unreachable on a plain server. |
+
+The `.env` values that differ:
+
+<Tabs>
+<TabItem label="direct">
+
+```
+APP_ENV=prod
+APP_DEBUG=false
+DEPLOY_MODE=direct
+DOMAIN=tds.example.com
+APP_URL=https://tds.example.com
+DB_PASSWORD=<change from the default>
+```
+
+</TabItem>
+<TabItem label="cf_flex">
+
+```
+APP_ENV=prod
+APP_DEBUG=false
+DEPLOY_MODE=cf_flex
+DOMAIN=tds.example.com
+APP_URL=https://tds.example.com
+DB_PASSWORD=<change from the default>
+```
+
+</TabItem>
+<TabItem label="cf_full">
+
+```
+APP_ENV=prod
+APP_DEBUG=false
+DEPLOY_MODE=cf_full
+DOMAIN=tds.example.com
+APP_URL=https://tds.example.com
+DB_PASSWORD=<change from the default>
+```
+
+Also mount the Cloudflare Origin Certificate so Caddy can serve `:443`.
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="Change DB_PASSWORD before the first start">
+PostgreSQL applies `POSTGRES_PASSWORD` only when it initializes an empty data directory.
+Change it afterwards and the database keeps the old password while the application sends the
+new one — authentication fails, and the only ways out are resetting it inside Postgres or
+destroying the volume.
+</Aside>
+
+<Aside type="caution" title="Never a bare `docker compose up` in a prod mode">
+Compose auto-merges `docker-compose.override.yml`, which bind-mounts the source tree over the
+built image. `public/assets/` and `public/p.js` are build artifacts baked in during the image
+build, so the mount hides them: the admin UI loads without CSS and `/p.js` returns 404 while
+every container still reports healthy. Use `make prod-up-direct` / `make prod-up-cf`, or the
+explicit `-f docker-compose.yml -f docker-compose.prod.<direct|cf>.yml` pair.
+</Aside>
+
+## The smoke test
+
+| # | Check | Pass |
+|---|---|---|
+| 1 | Containers | `app`, `db`, `cron` running; `app` healthy |
+| 2 | `GET /__health` | `200` |
+| 3 | Migrations | nothing left in `down` state |
+| 4 | `GET /admin/login` | `200` |
+| 5 | TLS | no certificate error |
+| 6 | Admin login | `302` to `/admin` |
+
+Plus one assertion that catches the failure hiding behind six green checks — that
+`/assets/app.<hash>.css` and `/p.js` both return `200` rather than `404`.
+
+## Real client IP
+
+Nothing to configure. In `cf_*` modes `Caddyfile.cf` already trusts Cloudflare's ranges and
+reads `CF-Connecting-IP`; the application then walks
+`X-Slim-IP → X-Real-IP → CF-Connecting-IP → True-Client-IP → X-Forwarded-For → REMOTE_ADDR`.
+The agent is instructed never to hand-edit a `Caddyfile.*` — `entrypoint.sh` selects the right
+one from `DEPLOY_MODE`.
+
+## If something goes wrong
+
+The runbook ends with a symptom → cause → fix table covering the failures this stack actually
+produces: an unstyled admin UI, a restart-looping worker, Let's Encrypt refusing to issue,
+database authentication breaking after a late password change, geo filters that never match,
+and ports already in use. The agent is told to consult it rather than improvise a patch, and
+to report a failed check instead of quietly declaring success.
+
+For the manual, human-operated version of the same install, see
+[Deployment Modes](./deployment/).

@@ -46,7 +46,7 @@ direct    → config/frankenphp/Caddyfile.direct
 | `DB_DSN` | Полный PDO DSN, собранный из переменных `DB_*` выше |
 | `ADMIN_LOGIN` | Имя администратора (по умолчанию `admin`) |
 | `ADMIN_PASSWORD` | Задаётся однократно командой `admin:init`; меняется через UI или `admin:set-password` впоследствии |
-| `TRUSTED_PROXIES` | Список IP/CIDR через запятую для режимов `cf_*` (обрабатывается автоматически в Caddyfile.cf; задаётся здесь для осведомлённости на уровне приложения) |
+| `TRUSTED_PROXIES` | **Не используется** — не читается ничем. Реальный IP клиента обрабатывают `Caddyfile.cf` и `App\Shared\RealIp`; см. [Обратный прокси](./reverse-proxy/) |
 | `MAXMIND_ACCOUNT_ID` / `MAXMIND_LICENSE_KEY` | Бесплатные учётные данные GeoLite2 для гео-фильтров |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram-бот для ежедневной сводки и ежечасных оповещений |
 | `FRANKENPHP_WORKER_MODE` | `1` (по умолчанию, in-memory worker) или `0` (как CGI, проще отлаживать) |
@@ -170,8 +170,6 @@ Cron-задача `geoip:check` (запускается ежедневно в 06
 ### Бэкап
 
 ```bash
-make backup
-# или:
 docker compose exec app php bin/console db:backup
 ```
 

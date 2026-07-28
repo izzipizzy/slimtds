@@ -60,8 +60,6 @@ docker compose exec app php bin/console partitions:rotate
 
 ```bash
 docker compose exec app php bin/console db:backup
-# или:
-make backup
 ```
 
 Чтобы восстановиться из дампа:
@@ -74,6 +72,6 @@ docker compose exec app ls /app/var/backups/
 docker compose exec app php bin/console db:restore <filename>.dump yes
 ```
 
-Смонтируйте том хоста поверх `/app/var/backups/`, если вам нужны копии дампов вне контейнера.
+Отдельный том для копий на хосте не нужен: `docker-compose.yml` уже монтирует `./var/backups` с хоста в `/app/var/backups` в контейнерах `app` и `cron`, поэтому дампы сразу попадают в каталог репозитория.
 
 ![Просмотр кликов в slimTDS](../../../assets/screenshots/clicks.png)

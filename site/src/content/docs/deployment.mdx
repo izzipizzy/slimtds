@@ -46,7 +46,7 @@ Copy `.env.example` to `.env` with `make env`, which also generates random value
 | `DB_DSN` | Full PDO DSN, constructed from the `DB_*` vars above |
 | `ADMIN_LOGIN` | Admin username (default `admin`) |
 | `ADMIN_PASSWORD` | Seeded once by `admin:init`; change via UI or `admin:set-password` afterwards |
-| `TRUSTED_PROXIES` | Comma-separated IP/CIDR list for `cf_*` modes (handled automatically by Caddyfile.cf; set here for application-layer awareness) |
+| `TRUSTED_PROXIES` | **Unused** — read by nothing. Real client IP is handled by `Caddyfile.cf` and `App\Shared\RealIp`; see [Reverse Proxy](./reverse-proxy/) |
 | `MAXMIND_ACCOUNT_ID` / `MAXMIND_LICENSE_KEY` | Free GeoLite2 credentials for geo-targeting filters |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram bot for daily digest and hourly alerts |
 | `FRANKENPHP_WORKER_MODE` | `1` (default, in-memory worker) or `0` (CGI-like, easier to debug) |
@@ -170,8 +170,6 @@ The cron container sends a daily digest at 10:00 UTC and hourly system alerts au
 ### Backup
 
 ```bash
-make backup
-# or:
 docker compose exec app php bin/console db:backup
 ```
 

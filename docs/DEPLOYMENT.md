@@ -2,6 +2,10 @@
 
 slimTDS supports three deployment modes. Choose based on your network topology.
 
+> This guide is written for a human operator. If you are an AI agent installing on a fresh
+> server, start at [`AI-INSTALL.md`](AI-INSTALL.md) instead — same stack, but ordered as an
+> executable runbook with preflight checks and a smoke test.
+
 ---
 
 ## Prerequisites
@@ -53,7 +57,9 @@ ADMIN_PASSWORD=<initial-password>
 
 `cf_flex` mode: Caddy listens on `:80`, Cloudflare terminates TLS. Simpler but traffic between CF edge and your origin is unencrypted.
 
-**Trusted proxies**: The app reads the real visitor IP from `CF-Connecting-IP`. Caddy is configured to trust Cloudflare IP ranges only (updated automatically via the `caddy-cloudflare` module).
+**Trusted proxies**: The app reads the real visitor IP from `CF-Connecting-IP`. `config/frankenphp/Caddyfile.cf` carries a **static, hardcoded** list of Cloudflare IP ranges (`trusted_proxies static …` + `client_ip_headers CF-Connecting-IP`) — nothing refreshes it, so it needs a manual update if Cloudflare changes its ranges. `src/Shared/RealIp.php` then walks `X-Slim-IP → X-Real-IP → CF-Connecting-IP → True-Client-IP → X-Forwarded-For → REMOTE_ADDR`.
+
+The `TRUSTED_PROXIES` key in `.env.example` is **not read by anything** — leave it empty.
 
 ---
 
@@ -168,21 +174,20 @@ docker compose exec app php bin/console telegram:alerts
 ### Backup
 
 ```bash
-make backup
-# or:
 docker compose exec app php bin/console db:backup
 ```
 
-Dumps are written to `/var/backups/slimtds/` inside the app container (mount a volume if you want host-side copies). The daily cron keeps the last 7 dumps and prunes older ones.
+Dumps are written to `/app/var/backups/` in the container, which compose bind-mounts to `./var/backups/` on the host — host-side copies need no extra volume. Files are `pg_dump --format=custom` archives named `<timestamp>.dump`. The daily cron prunes anything older than `RETENTION_DAYS` in `src/Cron/Command/DbBackupCommand.php`.
 
 ### Restore
 
 ```bash
 # List available dumps
-docker compose exec app ls /var/backups/slimtds/
+docker compose exec app ls /app/var/backups/
 
-# Restore (the 'yes' argument confirms destructive operation)
-docker compose exec app php bin/console db:restore slimtds_2026-04-24_03-00-00.sql.gz yes
+# Restore (the 'yes' argument confirms destructive operation).
+# The path is absolute or relative to var/backups/.
+docker compose exec app php bin/console db:restore 2026-04-24_03-00-00.dump yes
 ```
 
 ---
@@ -236,13 +241,14 @@ make pixel-test-down
 
 ### Switch language
 
-Change `DEFAULT_LOCALE` in `.env` (values: `ru`, `en`), then restart the app container:
+There is no environment variable for the interface language. `LocaleMiddleware` resolves it per request, in this order:
 
-```bash
-docker compose restart app
-```
+1. the signed-in admin's `ui_lang` column (set from the admin sidebar switcher, persisted per account),
+2. the `ui_lang` cookie,
+3. `Accept-Language`, when it starts with `en`,
+4. otherwise the default, `ru`.
 
-Operators can also switch per-session from the admin sidebar without a restart.
+Supported values are `ru` and `en`. Switching from the sidebar takes effect immediately — no restart.
 
 ---
 
