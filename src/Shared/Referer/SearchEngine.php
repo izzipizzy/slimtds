@@ -63,6 +63,27 @@ final class SearchEngine
     }
 
     /**
+     * Prefer the latest nearby pageview's entry referer and fall back to the
+     * Referer header recorded on the click.
+     */
+    public static function clickEntryRefererSql(string $clickAlias = 'c'): string
+    {
+        if (!preg_match('/^[a-z][a-z0-9_]*$/i', $clickAlias)) {
+            throw new \InvalidArgumentException('Invalid SQL alias');
+        }
+
+        return "COALESCE((
+            SELECT pe.referer
+            FROM stats.pixel_events pe
+            WHERE pe.visitor_uuid = {$clickAlias}.visitor_uuid
+              AND pe.created_at >= {$clickAlias}.created_at - interval '24 hours'
+              AND pe.created_at <= {$clickAlias}.created_at + interval '5 minutes'
+            ORDER BY pe.created_at DESC
+            LIMIT 1
+        ), {$clickAlias}.referer)";
+    }
+
+    /**
      * Build a WHERE fragment + bind params that matches the requested filter.
      * `$value` is one of:
      *   - 'any'       — match any known engine
@@ -91,6 +112,38 @@ final class SearchEngine
             return self::orFragment(self::ENGINES[$value], $col, $paramPrefix);
         }
         return ['', []];
+    }
+
+    /**
+     * Same filter as sqlFilter(), but evaluates a complex SQL expression once.
+     *
+     * @return array{0:string, 1:array<string,string>}
+     */
+    public static function sqlFilterCompact(string $value, string $col, string $paramPrefix = 'se'): array
+    {
+        if ($value === '') return ['', []];
+
+        $patterns = $value === 'any'
+            ? self::flatPatterns()
+            : (self::ENGINES[$value] ?? []);
+        if ($value === 'none') {
+            $patterns = self::flatPatterns();
+        }
+        if ($patterns === []) return ['', []];
+
+        $binds = [];
+        $params = [];
+        foreach ($patterns as $i => $pattern) {
+            $name = $paramPrefix . '_' . $i;
+            $binds[] = ':' . $name;
+            $params[$name] = '%' . strtolower($pattern) . '%';
+        }
+        $match = "LOWER({$col}) LIKE ANY (ARRAY[" . implode(', ', $binds) . ']::text[])';
+
+        if ($value === 'none') {
+            return ["({$col} IS NOT NULL AND {$col} <> '' AND NOT ({$match}))", $params];
+        }
+        return ["({$match})", $params];
     }
 
     /**

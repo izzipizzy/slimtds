@@ -128,7 +128,7 @@ $renderCell = function (string $key, array $r) use ($flag, $filterUrl, $chip): s
             $ua = (string)($r['user_agent'] ?? '');
             return '<span class="meta-mono" title="' . e($ua) . '" style="display:inline-block;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">' . e($ua) . '</span>';
         case 'referer':
-            $ref = (string)($r['referer'] ?? '');
+            $ref = (string)($r['entry_referer'] ?? $r['referer'] ?? '');
             if ($ref === '') return '<span style="color:var(--color-faintest)">—</span>';
             $eng = \App\Shared\Referer\SearchEngine::classify($ref);
             $body = '<span class="meta-mono" title="' . e($ref) . '" style="display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">' . e($ref) . '</span>';
@@ -365,7 +365,7 @@ require __DIR__ . '/../../_partials/page-header.php';
                 </thead>
                 <tbody>
                     <?php foreach ($items as $r): ?>
-                        <?php $rowEng = \App\Shared\Referer\SearchEngine::classify((string)($r['referer'] ?? '')); ?>
+                        <?php $rowEng = \App\Shared\Referer\SearchEngine::classify((string)($r['entry_referer'] ?? $r['referer'] ?? '')); ?>
                         <?php
                             $rowClasses = [];
                             if (!empty($r['has_conversion'])) $rowClasses[] = 'row-converted';

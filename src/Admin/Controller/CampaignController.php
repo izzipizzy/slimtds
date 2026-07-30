@@ -184,8 +184,8 @@ final class CampaignController
                 'title'      => 'Stats · ' . $campaign->name,
                 '__layout__' => 'layouts/admin',
                 'campaign'   => $campaign,
-                'timeline'   => $stats->clicksTimeline($cid, $since),
-                'summary'    => $stats->summary($cid, $since),
+                'timeline'   => $stats->searchClicksTimeline($cid, $since),
+                'summary'    => $stats->searchSummary($cid, $since),
                 'window'     => $window,
             ],
         );

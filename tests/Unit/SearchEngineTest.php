@@ -73,3 +73,26 @@ test('sqlFilterEngines is a no-op for empty / unknown engine lists', function ()
     expect(SearchEngine::sqlFilterEngines([], 'pe.referer'))->toBe(['', []]);
     expect(SearchEngine::sqlFilterEngines(['not-real'], 'pe.referer'))->toBe(['', []]);
 });
+
+test('click entry referer uses a nearby pixel and falls back to click referer', function (): void {
+    $sql = SearchEngine::clickEntryRefererSql('ck');
+
+    expect($sql)->toContain('pe.visitor_uuid = ck.visitor_uuid')
+        ->toContain("ck.created_at - interval '24 hours'")
+        ->toContain('ORDER BY pe.created_at DESC')
+        ->toContain('), ck.referer)');
+});
+
+test('click entry referer rejects unsafe aliases', function (): void {
+    expect(fn () => SearchEngine::clickEntryRefererSql('c; DROP TABLE x'))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('compact SQL filter evaluates a complex source expression once', function (): void {
+    $source = SearchEngine::clickEntryRefererSql('c');
+    [$sql, $params] = SearchEngine::sqlFilterCompact('any', $source, 'src');
+
+    expect(substr_count($sql, 'SELECT pe.referer'))->toBe(1)
+        ->and($sql)->toContain('LIKE ANY (ARRAY[')
+        ->and($params)->not->toBeEmpty();
+});

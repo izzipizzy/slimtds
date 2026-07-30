@@ -26,6 +26,9 @@
         </form>
     </div>
 </div>
+<div style="margin:-12px 0 18px;font-size:0.8rem;color:var(--color-stone-500)">
+    <?= e(t('statistics.search_scope_hint')) ?>
+</div>
 
 <!-- KPIs -->
 <div class="adapt-stack" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
