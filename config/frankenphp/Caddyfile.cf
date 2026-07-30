@@ -20,10 +20,12 @@
     root * /app/public
     encode zstd gzip
 
-    @static path /assets/* /p.js /favicon.ico /robots.txt
-    handle @static { file_server }
+    @static path /assets/* /p.js /p-lite.js /favicon.ico /robots.txt
+    handle @static {
+        file_server
+    }
 
-    @pjs path /p.js
+    @pjs path /p.js /p-lite.js
     header @pjs Access-Control-Allow-Origin *
 
     php_server

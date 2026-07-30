@@ -36,15 +36,15 @@ final class ClickController
         $page = max(1, (int)($params['page'] ?? '1'));
         $perPage = 50;
 
-        // Routing filter: default 'all' — the fingerprint-gated default view (see
-        // fp_js_has below) is about every visitor that left a fingerprint,
-        // trash and routed alike. Accepted: 'hide', 'all' (default), 'only'.
+        // Routing filter: default 'all'. Accepted: 'hide', 'all' (default), 'only'.
         $routing = $params['is_trash'] ?? 'all';
         if (!in_array($routing, ['hide', 'all', 'only'], true)) $routing = 'all';
 
-        // Bot filter: default 'all' too — bots that executed the pixel and got a
-        // fingerprint are part of the same fingerprinted-traffic view.
-        $botView = $params['bot_view'] ?? 'all';
+        $hasExactLookup = !empty($params['click_id']) || !empty($params['visitor']) || !empty($params['fp_js']);
+
+        // Default operator view: search/AI referrers only, known bots hidden.
+        // Exact click/visitor links bypass the defaults so postback audits work.
+        $botView = $params['bot_view'] ?? ($hasExactLookup ? 'all' : 'hide');
         if (!in_array($botView, ['hide', 'all', 'only'], true)) $botView = 'all';
 
         $filters = [
@@ -55,16 +55,17 @@ final class ClickController
             'is_uniq'     => isset($params['is_uniq']) && $params['is_uniq'] !== '' ? ($params['is_uniq'] === '1') : null,
             'is_trash'    => $routing,
             'since'       => $params['since'] ?? null,
-            'search'      => is_string($params['search'] ?? null) && $params['search'] !== '' ? $params['search'] : null,
+            'search'      => array_key_exists('search', $params)
+                ? (is_string($params['search']) && $params['search'] !== '' ? $params['search'] : null)
+                : ($hasExactLookup ? null : 'any'),
             'ip'          => is_string($params['ip'] ?? null) && trim($params['ip']) !== '' ? trim($params['ip']) : null,
             'click_id'    => is_string($params['click_id'] ?? null) && $params['click_id'] !== '' ? $params['click_id'] : null,
             'visitor'     => is_string($params['visitor'] ?? null) && $params['visitor'] !== '' ? $params['visitor'] : null,
             'fp_js'       => is_string($params['fp_js'] ?? null) && $params['fp_js'] !== '' ? $params['fp_js'] : null,
-            // Default '1': show only clicks that carry a fingerprint (the ones a
-            // replay session can be linked to). Pass fp_js_has= (empty) for all.
+            // Server-side go.php traffic normally has no browser fingerprint.
             'fp_js_has'   => isset($params['fp_js_has'])
                 ? (in_array($params['fp_js_has'], ['0', '1'], true) ? $params['fp_js_has'] : null)
-                : '1',
+                : null,
         ];
 
         $sort = $this->columns->sort();

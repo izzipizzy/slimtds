@@ -28,8 +28,8 @@ final class StatsController
             default => date('c', time() - 7 * 86400),
         };
 
-        $timeline = $this->stats->clicksTimeline($campaignId, $since);
-        $summary  = $this->stats->summary($campaignId, $since);
+        $timeline = $this->stats->searchClicksTimeline($campaignId, $since);
+        $summary  = $this->stats->searchSummary($campaignId, $since);
 
         $data = array_merge(
             $view->withRequestContext($request),

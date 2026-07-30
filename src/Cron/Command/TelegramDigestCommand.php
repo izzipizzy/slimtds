@@ -42,7 +42,7 @@ final class TelegramDigestCommand extends Command
         $since = date('Y-m-d\TH:i:sP', strtotime('-24 hours'));
 
         // Top-line summary across all campaigns
-        $totals = $this->stats->summary(null, $since);
+        $totals = $this->stats->searchSummary(null, $since);
 
         $lines = [
             sprintf(
@@ -50,10 +50,9 @@ final class TelegramDigestCommand extends Command
             ),
             '',
             sprintf(
-                'Clicks: <b>%d</b> (uniq: %d, bots: %d)',
+                'Search clicks: <b>%d</b> (uniq: %d, bots excluded)',
                 $totals['clicks'],
                 $totals['uniq'],
-                $totals['bots'],
             ),
             sprintf(
                 'Conv: <b>%d</b> (approved: %d) · Payout: <b>$%s</b>',
@@ -73,7 +72,7 @@ final class TelegramDigestCommand extends Command
         $rows = [];
 
         foreach ($allCampaigns as $campaign) {
-            $s = $this->stats->summary($campaign->id, $since);
+            $s = $this->stats->searchSummary($campaign->id, $since);
             if ($s['clicks'] > 0) {
                 $rows[] = ['campaign' => $campaign, 'stats' => $s];
             }
@@ -85,7 +84,7 @@ final class TelegramDigestCommand extends Command
 
         if ($rows !== []) {
             $lines[] = '';
-            $lines[] = '<b>Top campaigns (by clicks):</b>';
+            $lines[] = '<b>Top campaigns (search clicks):</b>';
             foreach ($rows as $i => $row) {
                 $c = $row['campaign'];
                 $s = $row['stats'];

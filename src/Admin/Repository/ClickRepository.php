@@ -24,6 +24,7 @@ final class ClickRepository
     {
         $offset = max(0, ($page - 1) * $perPage);
         [$where, $params] = $this->buildWhere($filters);
+        $entryReferer = SearchEngine::clickEntryRefererSql('c');
         $params['limit'] = $perPage;
         $params['offset'] = $offset;
 
@@ -32,6 +33,7 @@ final class ClickRepository
                     host(c.ip) AS ip, c.country, c.region, c.city, c.asn, c.isp,
                     c.device, c.os, c.browser, c.lang,
                     c.is_bot, c.bot_name, c.is_uniq, c.user_agent, c.referer,
+                    {$entryReferer} AS entry_referer,
                     c.utm_source, c.utm_medium, c.utm_campaign,
                     c.schema_id, c.out_url, c.http_status, c.created_at,
                     c.lander_host, c.lander_button, c.fp_js,
@@ -411,7 +413,11 @@ final class ClickRepository
         }
         // Search-engine referer filter (any | <engine> | none)
         if (!empty($filters['search'])) {
-            [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['search'], 'c.referer', 'se');
+            [$frag, $bind] = SearchEngine::sqlFilterCompact(
+                (string)$filters['search'],
+                SearchEngine::clickEntryRefererSql('c'),
+                'se',
+            );
             if ($frag !== '') {
                 $cond[] = $frag;
                 $params = array_merge($params, $bind);

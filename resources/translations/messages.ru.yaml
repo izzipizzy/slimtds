@@ -504,6 +504,7 @@ statistics:
   bots: 'Боты:'
   breadcrumb: статистика
   campaign_title: 'Статистика · {name}'
+  search_scope_hint: Только переходы из поиска / ИИ · известные боты исключены
 
 settings:
   title: Настройки

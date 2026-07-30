@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Stats;
 
 use App\Shared\Db\Connection;
+use App\Shared\Referer\SearchEngine;
 
 final class StatsRepository
 {
@@ -78,6 +79,100 @@ final class StatsRepository
             'cr'          => $cr,
             'epc'         => $epc,
         ];
+    }
+
+    /**
+     * KPIs for non-bot clicks attributed to a known search/AI entry source.
+     *
+     * @return array{clicks:int, uniq:int, bots:int, conversions:int, approved:int, payout:string, cr:float, epc:float}
+     */
+    public function searchSummary(?string $campaignId, string $sinceIso): array
+    {
+        [$refWhere, $refParams] = SearchEngine::sqlFilterCompact(
+            'any',
+            SearchEngine::clickEntryRefererSql('c'),
+            'search',
+        );
+        $campaignWhere = $campaignId !== null ? 'AND c.campaign_id = :cid' : '';
+        $params = ['since' => $sinceIso] + $refParams;
+        if ($campaignId !== null) {
+            $params['cid'] = $campaignId;
+        }
+
+        $clickRow = $this->db->fetchOne(
+            "SELECT count(*)::int AS clicks,
+                    count(*) FILTER (WHERE c.is_uniq)::int AS uniq
+             FROM stats.clicks c
+             WHERE c.created_at >= :since
+               AND c.is_bot = false
+               AND {$refWhere}
+               {$campaignWhere}",
+            $params,
+        ) ?? ['clicks' => 0, 'uniq' => 0];
+
+        $convRow = $this->db->fetchOne(
+            "SELECT count(cv.id)::int AS conversions,
+                    count(cv.id) FILTER (WHERE cv.status = 'approved')::int AS approved,
+                    COALESCE(sum(cv.payout) FILTER (WHERE cv.status = 'approved'), 0)::text AS payout
+             FROM core.conversions cv
+             JOIN stats.clicks c ON c.id = cv.click_id
+             WHERE cv.created_at >= :since
+               AND c.is_bot = false
+               AND {$refWhere}
+               {$campaignWhere}",
+            $params,
+        ) ?? ['conversions' => 0, 'approved' => 0, 'payout' => '0'];
+
+        $clicks = (int)$clickRow['clicks'];
+        $approved = (int)$convRow['approved'];
+        return [
+            'clicks'      => $clicks,
+            'uniq'        => (int)$clickRow['uniq'],
+            'bots'        => 0,
+            'conversions' => (int)$convRow['conversions'],
+            'approved'    => $approved,
+            'payout'      => (string)$convRow['payout'],
+            'cr'          => $clicks > 0 ? round($approved / $clicks * 100, 2) : 0.0,
+            'epc'         => $clicks > 0 ? round((float)$convRow['payout'] / $clicks, 4) : 0.0,
+        ];
+    }
+
+    /**
+     * @return list<array{hour:string, clicks:int, uniq:int, bot:int}>
+     */
+    public function searchClicksTimeline(?string $campaignId, string $sinceIso): array
+    {
+        [$refWhere, $refParams] = SearchEngine::sqlFilterCompact(
+            'any',
+            SearchEngine::clickEntryRefererSql('c'),
+            'search',
+        );
+        $campaignWhere = $campaignId !== null ? 'AND c.campaign_id = :cid' : '';
+        $params = ['since' => $sinceIso] + $refParams;
+        if ($campaignId !== null) {
+            $params['cid'] = $campaignId;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT to_char(date_trunc('hour', c.created_at), 'YYYY-MM-DD\"T\"HH24:00:00\"Z\"') AS hour,
+                    count(*)::int AS clicks,
+                    count(*) FILTER (WHERE c.is_uniq)::int AS uniq
+             FROM stats.clicks c
+             WHERE c.created_at >= :since
+               AND c.is_bot = false
+               AND {$refWhere}
+               {$campaignWhere}
+             GROUP BY date_trunc('hour', c.created_at)
+             ORDER BY date_trunc('hour', c.created_at)",
+            $params,
+        );
+
+        return array_map(static fn ($r) => [
+            'hour'   => (string)$r['hour'],
+            'clicks' => (int)$r['clicks'],
+            'uniq'   => (int)$r['uniq'],
+            'bot'    => 0,
+        ], $rows);
     }
 
     public function refreshClicksHourly(): void

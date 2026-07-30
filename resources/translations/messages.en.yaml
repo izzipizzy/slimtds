@@ -490,6 +490,7 @@ statistics:
   bots: 'Bots:'
   breadcrumb: stats
   campaign_title: 'Stats · {name}'
+  search_scope_hint: Search / AI referrers only · known bots excluded
 
 settings:
   title: Settings
