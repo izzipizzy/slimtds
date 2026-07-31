@@ -100,8 +100,8 @@ final class StatsRepository
         }
 
         $clickRow = $this->db->fetchOne(
-            "SELECT count(*)::int AS clicks,
-                    count(*) FILTER (WHERE c.is_uniq)::int AS uniq
+            "SELECT count(DISTINCT c.visitor_uuid)::int AS clicks,
+                    count(DISTINCT c.visitor_uuid)::int AS uniq
              FROM stats.clicks c
              WHERE c.created_at >= :since
                AND c.is_bot = false
@@ -154,16 +154,20 @@ final class StatsRepository
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT to_char(date_trunc('hour', c.created_at), 'YYYY-MM-DD\"T\"HH24:00:00\"Z\"') AS hour,
+            "SELECT to_char(date_trunc('hour', first_click.created_at), 'YYYY-MM-DD\"T\"HH24:00:00\"Z\"') AS hour,
                     count(*)::int AS clicks,
-                    count(*) FILTER (WHERE c.is_uniq)::int AS uniq
-             FROM stats.clicks c
-             WHERE c.created_at >= :since
-               AND c.is_bot = false
-               AND {$refWhere}
-               {$campaignWhere}
-             GROUP BY date_trunc('hour', c.created_at)
-             ORDER BY date_trunc('hour', c.created_at)",
+                    count(*)::int AS uniq
+             FROM (
+                 SELECT DISTINCT ON (c.visitor_uuid) c.created_at
+                 FROM stats.clicks c
+                 WHERE c.created_at >= :since
+                   AND c.is_bot = false
+                   AND {$refWhere}
+                   {$campaignWhere}
+                 ORDER BY c.visitor_uuid, c.created_at
+             ) first_click
+             GROUP BY date_trunc('hour', first_click.created_at)
+             ORDER BY date_trunc('hour', first_click.created_at)",
             $params,
         );
 
