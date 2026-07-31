@@ -50,9 +50,8 @@ final class TelegramDigestCommand extends Command
             ),
             '',
             sprintf(
-                'Search clicks: <b>%d</b> (uniq: %d, bots excluded)',
+                'Unique search visitors: <b>%d</b> (bots excluded)',
                 $totals['clicks'],
-                $totals['uniq'],
             ),
             sprintf(
                 'Conv: <b>%d</b> (approved: %d) · Payout: <b>$%s</b>',
@@ -67,7 +66,7 @@ final class TelegramDigestCommand extends Command
             ),
         ];
 
-        // Top 10 campaigns by clicks
+        // Top 10 campaigns by unique search visitors
         $allCampaigns = $this->campaigns->page(1, 200);
         $rows = [];
 
@@ -78,18 +77,18 @@ final class TelegramDigestCommand extends Command
             }
         }
 
-        // Sort by clicks desc, take top 10
+        // Sort by unique visitors desc, take top 10
         usort($rows, static fn ($a, $b) => $b['stats']['clicks'] <=> $a['stats']['clicks']);
         $rows = array_slice($rows, 0, 10);
 
         if ($rows !== []) {
             $lines[] = '';
-            $lines[] = '<b>Top campaigns (search clicks):</b>';
+            $lines[] = '<b>Top campaigns (unique search visitors):</b>';
             foreach ($rows as $i => $row) {
                 $c = $row['campaign'];
                 $s = $row['stats'];
                 $lines[] = sprintf(
-                    '%d. <b>%s</b> — %d clicks · %d conv · $%s',
+                    '%d. <b>%s</b> — %d visitors · %d conv · $%s',
                     $i + 1,
                     $c->name,
                     $s['clicks'],
