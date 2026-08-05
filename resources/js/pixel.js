@@ -17,6 +17,23 @@ import { record } from 'rrweb'
     }
   }
 
+  // ── Recording opt-out ───────────────────────────────────────────────────
+  // Landers that only need entry-source/pageview tracking opt out of rrweb with
+  // `<script src="/p.js?c=X&rec=0">` (or data-rec="0"). Fingerprint and pageview
+  // still fire — this is a mode of the one pixel, not a second script.
+  let recEnabled = true
+  if (script) {
+    let recAttr = script.getAttribute('data-rec')
+    if (recAttr === null) {
+      try {
+        recAttr = new URL(script.src).searchParams.get('rec')
+      } catch (_) {
+        recAttr = null
+      }
+    }
+    if (recAttr === '0' || recAttr === 'false' || recAttr === 'off') recEnabled = false
+  }
+
   // ── Endpoint URL ────────────────────────────────────────────────────────
   // Relative `p/event` (no leading slash) so the endpoint resolves next to
   // wherever p.js was served from. Two cases this handles:
@@ -99,7 +116,7 @@ import { record } from 'rrweb'
   try {
     var cfg = window.__slim || {}
     var rate = typeof cfg.rate === 'number' ? cfg.rate : 100
-    if (campaignId && rate > 0 && Math.random() * 100 < rate) {
+    if (campaignId && recEnabled && rate > 0 && Math.random() * 100 < rate) {
       startRecording()
     }
   } catch (_) {}
