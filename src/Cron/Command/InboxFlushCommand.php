@@ -103,11 +103,11 @@ final class InboxFlushCommand extends Command
                 <<<'SQL'
                     INSERT INTO stats.pixel_events
                         (campaign_id, visitor_uuid, fp_js, event_name, page_url,
-                         referer, ip, country, city, asn, user_agent, device, os, browser,
+                         referer, entry_referer, ip, country, city, asn, user_agent, device, os, browser,
                          screen_w, screen_h, timezone, lang, props, is_bot, bot_name, created_at)
                     VALUES
                         (:campaign_id, :visitor_uuid, :fp_js, :event_name, :page_url,
-                         :referer, :ip::inet, :country, :city, :asn, :user_agent, :device, :os, :browser,
+                         :referer, :entry_referer, :ip::inet, :country, :city, :asn, :user_agent, :device, :os, :browser,
                          :screen_w, :screen_h, :timezone, :lang, :props::jsonb, :is_bot, :bot_name, :created_at)
                 SQL,
                 [
@@ -117,6 +117,7 @@ final class InboxFlushCommand extends Command
                     'event_name'   => (string)($payload['event'] ?? 'pageview'),
                     'page_url'     => $payload['url'] ?? null,
                     'referer'      => $payload['ref'] ?? null,
+                    'entry_referer' => $payload['eref'] ?? null,
                     'ip'           => filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null,
                     'country'      => $ctx->country,
                     'city'         => $ctx->city,

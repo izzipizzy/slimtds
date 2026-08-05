@@ -47,8 +47,20 @@ final class ClickController
         $botView = $params['bot_view'] ?? 'all';
         if (!in_array($botView, ['hide', 'all', 'only'], true)) $botView = 'all';
 
+        // Entry-source filter — OPT-IN only, so the default view is unchanged.
+        // Exact lookups bypass it: a postback audit must find its click_id row
+        // no matter how the list happens to be filtered.
+        $hasExactLookup = ($params['click_id'] ?? '') !== ''
+            || ($params['visitor'] ?? '') !== ''
+            || ($params['fp_js'] ?? '') !== '';
+        $entryRef = is_string($params['entry_ref'] ?? null) && $params['entry_ref'] !== ''
+            ? $params['entry_ref']
+            : null;
+        if ($hasExactLookup) $entryRef = null;
+
         $filters = [
             'campaign_id' => $params['campaign_id'] ?? null,
+            'entry_ref'   => $entryRef,
             'country'     => $params['country'] ?? null,
             'device'      => $params['device'] ?? null,
             'bot_view'    => $botView,

@@ -333,6 +333,7 @@ clicks:
     is_uniq: Уникальный
     ua: User-Agent
     referer: Referer
+    entry_referer: Источник входа
     utm_source: UTM source
     utm_medium: UTM medium
     utm_campaign: UTM campaign
@@ -358,6 +359,7 @@ clicks:
     uniq: Уник
     fingerprint: Фингерпринт
     referer: Referer
+    entry_ref: Источник входа
     any_campaign: '— все кампании —'
     country_ph: ru / us
     fp_ph: точный хеш

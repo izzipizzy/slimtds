@@ -33,6 +33,9 @@ final class ColumnPreferences
         'is_uniq'      => ['label_key' => 'clicks.col.is_uniq',      'sortable' => null,            'default' => false],
         'ua'           => ['label_key' => 'clicks.col.ua',           'sortable' => null,            'default' => false],
         'referer'      => ['label_key' => 'clicks.col.referer',      'sortable' => null,            'default' => false],
+        // Entry source recorded by the pixel — shown next to `referer`, not
+        // instead of it, and off by default so the stock view is unchanged.
+        'entry_referer' => ['label_key' => 'clicks.col.entry_referer', 'sortable' => null,          'default' => false],
         'utm_source'   => ['label_key' => 'clicks.col.utm_source',   'sortable' => null,            'default' => false],
         'utm_medium'   => ['label_key' => 'clicks.col.utm_medium',   'sortable' => null,            'default' => false],
         'utm_campaign' => ['label_key' => 'clicks.col.utm_campaign', 'sortable' => null,            'default' => false],

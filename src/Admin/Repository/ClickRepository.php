@@ -38,11 +38,26 @@ final class ClickRepository
                     cmp.slug AS campaign_slug, cmp.name AS campaign_name,
                     o.name AS offer_name,
                     fl.name AS flow_name,
+                    er.entry_referer,
                     (EXISTS (SELECT 1 FROM core.conversions cv WHERE cv.click_id = c.id))::int AS has_conversion
              FROM stats.clicks c
              LEFT JOIN core.campaigns cmp ON cmp.id = c.campaign_id
              LEFT JOIN core.offers o      ON o.id   = c.offer_id
              LEFT JOIN core.flows fl      ON fl.id  = c.flow_id
+             -- Entry source the pixel recorded for this visitor, shown ALONGSIDE
+             -- c.referer, never replacing it. Earliest matching event wins: that
+             -- is the one carrying the external source, unlike the most recent
+             -- one, which is typically an in-lander navigation.
+             LEFT JOIN LATERAL (
+                 SELECT pe.entry_referer
+                 FROM stats.pixel_events pe
+                 WHERE pe.visitor_uuid = c.visitor_uuid
+                   AND pe.entry_referer IS NOT NULL
+                   AND pe.created_at >= c.created_at - interval '24 hours'
+                   AND pe.created_at <= c.created_at + interval '5 minutes'
+                 ORDER BY pe.created_at
+                 LIMIT 1
+             ) er ON true
              {$where}
              ORDER BY {$orderBy}
              LIMIT :limit OFFSET :offset",
@@ -414,6 +429,25 @@ final class ClickRepository
             [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['search'], 'c.referer', 'se');
             if ($frag !== '') {
                 $cond[] = $frag;
+                $params = array_merge($params, $bind);
+            }
+        }
+        // Entry-source filter (any | <engine> | none) — OPT-IN, never a default.
+        // Matches the entry referer the pixel recorded for the same visitor
+        // instead of the click's own Referer header, which behind a server-side
+        // go.php redirect is the lander itself. Written as EXISTS so it works
+        // identically in page() and count(), and costs nothing when unset.
+        if (!empty($filters['entry_ref'])) {
+            [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['entry_ref'], 'pe.entry_referer', 'eref');
+            if ($frag !== '') {
+                $cond[] = "EXISTS (
+                    SELECT 1 FROM stats.pixel_events pe
+                    WHERE pe.visitor_uuid = c.visitor_uuid
+                      AND pe.entry_referer IS NOT NULL
+                      AND pe.created_at >= c.created_at - interval '24 hours'
+                      AND pe.created_at <= c.created_at + interval '5 minutes'
+                      AND {$frag}
+                )";
                 $params = array_merge($params, $bind);
             }
         }

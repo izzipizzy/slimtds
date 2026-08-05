@@ -319,6 +319,7 @@ clicks:
     is_uniq: Unique
     ua: User-Agent
     referer: Referer
+    entry_referer: Entry source
     utm_source: UTM source
     utm_medium: UTM medium
     utm_campaign: UTM campaign
@@ -344,6 +345,7 @@ clicks:
     uniq: Uniq
     fingerprint: Fingerprint
     referer: Referer
+    entry_ref: Entry source
     any_campaign: '— any campaign —'
     country_ph: ru / us
     fp_ph: exact hash

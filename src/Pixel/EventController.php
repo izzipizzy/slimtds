@@ -17,7 +17,8 @@ use Psr\Http\Message\ServerRequestInterface;
  * Payload (JSON):
  *   c     string   campaign slug (required)
  *   url   string   page URL
- *   ref   string   referrer
+ *   ref   string   referrer of the current page
+ *   eref  string   referrer of the visit's entry page (external only, may be absent)
  *   ua    string   user-agent
  *   lang  string   browser language
  *   tz    string   timezone
@@ -114,6 +115,7 @@ final class EventController
                     'event'       => is_string($data['event'] ?? null) && $data['event'] !== '' ? $data['event'] : 'pageview',
                     'url'         => is_string($data['url'] ?? null) ? $data['url'] : null,
                     'ref'         => is_string($data['ref'] ?? null) ? $data['ref'] : null,
+                    'eref'        => is_string($data['eref'] ?? null) && $data['eref'] !== '' ? $data['eref'] : null,
                     'sw'          => isset($data['sw']) && is_numeric($data['sw']) ? (int)$data['sw'] : null,
                     'sh'          => isset($data['sh']) && is_numeric($data['sh']) ? (int)$data['sh'] : null,
                     'tz'          => is_string($data['tz'] ?? null) && $data['tz'] !== '' ? $data['tz'] : null,

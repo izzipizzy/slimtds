@@ -139,6 +139,21 @@ $renderCell = function (string $key, array $r) use ($flag, $filterUrl, $chip): s
                     . ' ' . $body;
             }
             return $body;
+        case 'entry_referer':
+            // The visit's external entry source, as recorded by the pixel. Empty
+            // whenever no pixel event covers this visitor — the raw Referer
+            // column is deliberately left to speak for itself in that case.
+            $eref = (string)($r['entry_referer'] ?? '');
+            if ($eref === '') return '<span style="color:var(--color-faintest)">—</span>';
+            $eng = \App\Shared\Referer\SearchEngine::classify($eref);
+            $body = '<span class="meta-mono" title="' . e($eref) . '" style="display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">' . e($eref) . '</span>';
+            if ($eng !== null) {
+                $body = $chip($filterUrl(['entry_ref' => $eng]),
+                    '<span class="badge badge-info">' . e($eng) . '</span>',
+                    'Filter to ' . $eng . ' entry sources')
+                    . ' ' . $body;
+            }
+            return $body;
         case 'utm_source':   return e((string)($r['utm_source'] ?? '—'));
         case 'utm_medium':   return e((string)($r['utm_medium'] ?? '—'));
         case 'utm_campaign': return e((string)($r['utm_campaign'] ?? '—'));
@@ -264,6 +279,21 @@ require __DIR__ . '/../../_partials/page-header.php';
             <option value="none"<?= $cur === 'none' ? 'selected' : '' ?>><?= e(t('filter_opt.non_search')) ?></option>
             <?php foreach (\App\Shared\Referer\SearchEngine::keys() as $eng): ?>
                 <option value="<?= e($eng) ?>" <?= $cur === $eng ? 'selected' : '' ?>><?= e($eng) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <!-- Entry source — matches what the pixel saw when the visit started, not
+         the click's own Referer. Left unset by default: it only narrows the
+         list when the operator deliberately picks a value. -->
+    <div class="filter-field">
+        <label class="filter-label"><?= e(t('clicks.filter.entry_ref')) ?></label>
+        <select name="entry_ref" class="input-sm" style="width:170px">
+            <?php $curEr = (string)($filters['entry_ref'] ?? ''); ?>
+            <option value=""    <?= $curEr === ''     ? 'selected' : '' ?>><?= e(t('filter_opt.any')) ?></option>
+            <option value="any" <?= $curEr === 'any'  ? 'selected' : '' ?>><?= e(t('filter_opt.any_search')) ?></option>
+            <option value="none"<?= $curEr === 'none' ? 'selected' : '' ?>><?= e(t('filter_opt.non_search')) ?></option>
+            <?php foreach (\App\Shared\Referer\SearchEngine::keys() as $eng): ?>
+                <option value="<?= e($eng) ?>" <?= $curEr === $eng ? 'selected' : '' ?>><?= e($eng) ?></option>
             <?php endforeach; ?>
         </select>
     </div>

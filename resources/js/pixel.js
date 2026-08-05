@@ -34,6 +34,32 @@ import { record } from 'rrweb'
     if (recAttr === '0' || recAttr === 'false' || recAttr === 'off') recEnabled = false
   }
 
+  // ── Entry referer ───────────────────────────────────────────────────────
+  // Captured once per tab and replayed on every later pageview. After the first
+  // in-lander navigation document.referrer points at the lander itself, which is
+  // exactly how genuine search traffic becomes indistinguishable from direct —
+  // especially behind server-side go.php redirects. Only an EXTERNAL referer
+  // counts as an entry source; a same-host one is stored as empty.
+  let entryRef = ''
+  try {
+    const stored = sessionStorage.getItem('slim_ref')
+    if (stored === null) {
+      const r = document.referrer || ''
+      let external = false
+      if (r) {
+        try {
+          external = new URL(r).hostname.replace(/^www\./, '') !== location.hostname.replace(/^www\./, '')
+        } catch (_) {}
+      }
+      entryRef = external ? r : ''
+      sessionStorage.setItem('slim_ref', entryRef)
+    } else {
+      entryRef = stored
+    }
+  } catch (_) {
+    entryRef = document.referrer || ''
+  }
+
   // ── Endpoint URL ────────────────────────────────────────────────────────
   // Relative `p/event` (no leading slash) so the endpoint resolves next to
   // wherever p.js was served from. Two cases this handles:
@@ -69,6 +95,7 @@ import { record } from 'rrweb'
       c: campaignId,
       url: location.href,
       ref: document.referrer || null,
+      eref: entryRef || null,
       ua: navigator.userAgent || null,
       lang: navigator.language || null,
       tz: Intl.DateTimeFormat
@@ -143,14 +170,8 @@ import { record } from 'rrweb'
     } catch (_) { sid = newSid() }
     var buffer = []
     var seq = 0
-    // Entry referer of the visit — captured once and reused across same-tab
-    // navigations (the entry page's document.referrer carries the external
-    // source; later in-visit pages reference the lander itself).
-    var entryRef
-    try {
-      entryRef = sessionStorage.getItem('slim_ref')
-      if (entryRef === null) { entryRef = document.referrer || ''; sessionStorage.setItem('slim_ref', entryRef) }
-    } catch (_) { entryRef = document.referrer || '' }
+    // Entry referer comes from the shared capture above — one definition for
+    // both the pageview payload and the recording, so they can never disagree.
     // Resolve the FingerprintJS id once; it links the session to clicks/pixel
     // events server-side. May be null on early chunks until it resolves.
     var fpId = null
