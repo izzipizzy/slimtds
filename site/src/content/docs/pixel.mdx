@@ -34,6 +34,24 @@ The first argument is the event name; the second is an arbitrary props object th
 
 Alongside events, the pixel records the visit with [rrweb](https://github.com/rrweb-io/rrweb) and streams the recording to `POST /p/rec` in chunks. These become watchable replays in the admin — see [Session Replays](../replays/).
 
+### Pageview-only mode
+
+Landers that only need pageviews and entry-source attribution can skip session recording with `rec=0`:
+
+```html
+<script async src="https://your-domain.com/p.js?c=CAMPAIGN_SLUG&rec=0"></script>
+```
+
+`data-rec="0"` on the script tag does the same thing. Fingerprinting and the pageview event still fire — only the rrweb recorder is left out, which is the bulk of the pixel's work on the page.
+
+This is a mode of the same `/p.js`, not a separate script: there is one URL to install, one artifact to cache, and nothing to change on the server.
+
+### Entry source
+
+On the first page of a visit the pixel stores the *external* referrer in `sessionStorage` and replays it on every later pageview of that tab. Without this, `document.referrer` points at the lander itself as soon as the visitor navigates internally — which is how genuine search traffic becomes indistinguishable from direct, especially behind a server-side `go.php` redirect.
+
+The value lands in `stats.pixel_events.entry_referer` and drives the optional **Entry source** column and filter on the clicks list. A same-host referrer is stored as empty rather than being passed off as a traffic source.
+
 ## Sending events
 
 Events are received at `POST /p/event`. The body can be JSON (`Content-Type: application/json`) or form-encoded. Accepted fields:

@@ -50,7 +50,9 @@ Then open the admin login shown at the end of `make up` and sign in with
   RANGE-partitioned, BRIN-indexed table.
 - **Pixel** — `/p.js` (FingerprintJS CE) + `/p/event`, with permissive CORS so
   any external lander can report events. Includes zero-site-change session
-  recording via a bundled rrweb client.
+  recording via a bundled rrweb client, which landers that only need pageviews
+  can switch off with `?rec=0`. Captures the visit's external entry referrer so
+  search traffic stays attributable behind server-side redirects.
 - **Postback** — incoming `/postback` (GET/POST, idempotent UPSERT on
   `subid+status`, per-offer and campaign-level catch-all tokens) plus a
   decoupled outgoing delivery worker with exponential-backoff retry.
