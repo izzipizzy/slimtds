@@ -439,6 +439,7 @@ filter_values:
   placeholder:
     select: '— select —'
     country: '— country —'
+    country_list: 'ru, kz, by — comma-separated'
     device:  '— device —'
     os:      '— OS —'
     browser: '— browser —'

@@ -53,6 +53,11 @@ Alpine.data('flowBuilder', (opts) => ({
       this.filters.splice(gi, 1)
     }
   },
+  // `in`/`not_in` take a comma-separated list of values, so value inputs that
+  // cap length for a single token (country: 2 chars) must lift the cap.
+  isListOp(op) {
+    return op === 'in' || op === 'not_in'
+  },
   addTarget() {
     this.targetOffers.push({ offer_id: '', weight: 100 })
   },

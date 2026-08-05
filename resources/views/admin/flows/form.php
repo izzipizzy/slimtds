@@ -219,9 +219,11 @@ $countries = $_lang === 'en' ? $countriesEn : $countriesRu;
                                 </select>
                             </template>
                             <template x-if="cond.field === 'country'">
+                                <!-- `in`/`not_in` take a comma-separated list (FilterCompiler::inList
+                                     splits on commas), so the single-ISO-code cap must lift for them. -->
                                 <input x-model="cond.value" list="list-country" class="input" style="flex:1;font-size:0.8rem;font-family:var(--font-mono)"
-                                       placeholder="<?= e(t('filter_values.placeholder.country')) ?>"
-                                       autocomplete="off" maxlength="2">
+                                       :placeholder="isListOp(cond.op) ? '<?= e(t('filter_values.placeholder.country_list')) ?>' : '<?= e(t('filter_values.placeholder.country')) ?>'"
+                                       autocomplete="off" :maxlength="isListOp(cond.op) ? null : 2">
                             </template>
                             <template x-if="!['is_bot','is_uniq','day_of_week','device','os','browser','lang','country'].includes(cond.field)">
                                 <input x-model="cond.value" :list="'list-' + cond.field" class="input" style="flex:1;font-size:0.8rem;font-family:var(--font-mono)" placeholder="value">

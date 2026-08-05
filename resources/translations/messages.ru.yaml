@@ -453,6 +453,7 @@ filter_values:
   placeholder:
     select: '— выбрать —'
     country: '— страна —'
+    country_list: 'ru, kz, by — через запятую'
     device:  '— устройство —'
     os:      '— ОС —'
     browser: '— браузер —'
