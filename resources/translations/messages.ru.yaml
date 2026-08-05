@@ -365,6 +365,9 @@ clicks:
     fp_ph: точный хеш
   apply: применить
   reset: сбросить
+  save_view: 'вид по умолчанию'
+  save_view_update: 'обновить вид'
+  save_view_hint: 'Запомнить текущие фильтры как ваш вид по умолчанию. Ссылка с фильтрами в URL всегда важнее сохранённого вида.'
   cancel: отмена
   uniq_badge: uniq
   repeat_badge: repeat

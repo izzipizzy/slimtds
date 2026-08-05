@@ -351,6 +351,9 @@ clicks:
     fp_ph: exact hash
   apply: apply
   reset: reset
+  save_view: 'default view'
+  save_view_update: 'update view'
+  save_view_hint: 'Remember the current filters as your default view. A link that carries filters in its URL always wins over the saved view.'
   cancel: cancel
   uniq_badge: uniq
   repeat_badge: repeat

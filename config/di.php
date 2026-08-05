@@ -64,6 +64,7 @@ return static function (): \DI\Container {
         \App\Admin\Form\FlowForm::class => \DI\autowire(),
         \App\Admin\Controller\FlowController::class => \DI\autowire(),
         \App\Admin\Repository\ClickRepository::class => \DI\autowire(),
+        \App\Admin\Repository\ViewPreferenceRepository::class => \DI\autowire(),
         \App\Admin\Controller\ClickController::class => \DI\autowire(),
         \App\Admin\Repository\ConversionRepository::class => \DI\autowire(),
         \App\Admin\Controller\ConversionController::class => \DI\autowire(),

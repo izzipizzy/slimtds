@@ -105,6 +105,7 @@ return static function (App $app): void {
         $g->get('/clicks',                  [\App\Admin\Controller\ClickController::class, 'index']);
         $g->post('/clicks/columns',         [\App\Admin\Controller\ClickController::class, 'saveColumns']);
         $g->post('/clicks/columns/reset',   [\App\Admin\Controller\ClickController::class, 'resetColumns']);
+        $g->post('/clicks/view',            [\App\Admin\Controller\ClickController::class, 'saveView']);
 
         // Conversions log viewer
         $g->get('/conversions', [\App\Admin\Controller\ConversionController::class, 'index']);

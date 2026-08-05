@@ -298,6 +298,14 @@ require __DIR__ . '/../../_partials/page-header.php';
         </select>
     </div>
     <button type="submit" class="btn-secondary" style="font-size:0.8rem;height:32px;align-self:flex-end"><?= e(t('clicks.apply')) ?></button>
+    <!-- Pin the filters currently applied as this operator's own default view.
+         Posting with everything unset clears the preference. -->
+    <?php $savedView = $saved_view ?? []; ?>
+    <button type="submit" form="save-view-form" class="btn-ghost"
+            title="<?= e(t('clicks.save_view_hint')) ?>"
+            style="font-size:0.8rem;height:32px;align-self:flex-end;padding:0 12px;color:var(--color-muted);border:1px solid var(--color-border);border-radius:4px;background:none;cursor:pointer">
+        <?= e($savedView !== [] ? t('clicks.save_view_update') : t('clicks.save_view')) ?>
+    </button>
     <a href="<?= e(url('/admin/clicks')) ?>" class="btn-ghost" style="font-size:0.8rem;height:32px;align-self:flex-end;display:inline-flex;align-items:center;padding:0 12px;color:var(--color-muted);text-decoration:none;border:1px solid var(--color-border);border-radius:4px"><?= e(t('clicks.reset')) ?></a>
 
     <!-- Columns gear — opens drawer panel -->
@@ -357,6 +365,19 @@ require __DIR__ . '/../../_partials/page-header.php';
             </footer>
         </aside>
     </div>
+</form>
+
+<?php
+// Sibling form (HTML forms cannot nest) carrying the filters that are actually
+// in effect right now. Only the keys the controller accepts as saveable are
+// sent; posting them all empty is how the operator clears their default.
+$saveableView = ['is_trash', 'bot_view', 'search', 'entry_ref', 'fp_js_has'];
+?>
+<form id="save-view-form" method="post" action="<?= e(url('/admin/clicks/view')) ?>" style="display:none">
+    <?= csrf_field($csrf_token) ?>
+    <?php foreach ($saveableView as $k): ?>
+        <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)($filters[$k] ?? '')) ?>">
+    <?php endforeach; ?>
 </form>
 
 <?php if (empty($items)): ?>
