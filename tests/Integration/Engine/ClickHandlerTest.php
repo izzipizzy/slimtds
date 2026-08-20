@@ -133,6 +133,53 @@ test('inactive offer is removed before active offer weights are evaluated', func
     expect($resp->getHeaderLine('Location'))->toStartWith('https://active.example/');
 });
 
+test('a malformed offer_id does not take the rest of the flow down with it', function (): void {
+    // core.offers.id is a uuid column, so a non-uuid candidate aborts the lookup
+    // for every visitor — not just the share of them the picker would have sent
+    // to that entry. The healthy offer next to it must still be served.
+    $this->db->execute(
+        'UPDATE core.flows SET target_offers = :targets::jsonb WHERE id = :id',
+        [
+            'id' => $this->flow->id,
+            'targets' => json_encode([
+                ['offer_id' => 'not-a-uuid', 'weight' => 100],
+                ['offer_id' => $this->offer->id, 'weight' => 1],
+            ], JSON_THROW_ON_ERROR),
+        ],
+    );
+
+    $resp = $this->handler->handle(
+        (new ServerRequestFactory())->createServerRequest('GET', '/clkt01'),
+        new Response(),
+        'clkt01',
+    );
+
+    expect($resp->getStatusCode())->toBe(302);
+    expect($resp->getHeaderLine('Location'))->toStartWith('https://example.com/');
+});
+
+test('an offer_id that no longer exists is skipped in favour of a live one', function (): void {
+    $this->db->execute(
+        'UPDATE core.flows SET target_offers = :targets::jsonb WHERE id = :id',
+        [
+            'id' => $this->flow->id,
+            'targets' => json_encode([
+                ['offer_id' => '019dc137-724a-756c-923a-a39200000000', 'weight' => 100],
+                ['offer_id' => $this->offer->id, 'weight' => 1],
+            ], JSON_THROW_ON_ERROR),
+        ],
+    );
+
+    $resp = $this->handler->handle(
+        (new ServerRequestFactory())->createServerRequest('GET', '/clkt01'),
+        new Response(),
+        'clkt01',
+    );
+
+    expect($resp->getStatusCode())->toBe(302);
+    expect($resp->getHeaderLine('Location'))->toStartWith('https://example.com/');
+});
+
 test('trash {offer:name} redirects to the offer url, macro-expanded', function (): void {
     $cRepo = new CampaignRepository($this->db, new CampaignIdGenerator());
     $c2 = $cRepo->create(['name' => 'Trash offer', 'slug' => 'trsh01', 'is_active' => '1']);
@@ -170,6 +217,30 @@ test('trash {offer:name} does not redirect to an inactive offer', function (): v
         (new ServerRequestFactory())->createServerRequest('GET', '/trsh04'),
         new Response(),
         'trsh04',
+    );
+
+    expect($resp->getStatusCode())->toBe(204);
+    expect($resp->getHeaderLine('Location'))->toBe('');
+});
+
+test('trash {offer:uuid} does not redirect to an inactive offer either', function (): void {
+    // The reference resolves by id before it falls back to the name, so the
+    // active-only check has to hold on both branches, not just the named one.
+    $this->db->execute(
+        'UPDATE core.offers SET is_active = false WHERE id = :id',
+        ['id' => $this->offer->id],
+    );
+    $cRepo = new CampaignRepository($this->db, new CampaignIdGenerator());
+    $campaign = $cRepo->create(['name' => 'Inactive trash offer by id', 'slug' => 'trsh05', 'is_active' => '1']);
+    $this->db->execute(
+        'UPDATE core.campaigns SET trash_mode = 1, trash_url = :url WHERE id = :id',
+        ['url' => '{offer:' . $this->offer->id . '}', 'id' => $campaign->id],
+    );
+
+    $resp = $this->handler->handle(
+        (new ServerRequestFactory())->createServerRequest('GET', '/trsh05'),
+        new Response(),
+        'trsh05',
     );
 
     expect($resp->getStatusCode())->toBe(204);

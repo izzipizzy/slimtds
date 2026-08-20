@@ -20,6 +20,14 @@ use Ramsey\Uuid\Uuid;
 
 final class ClickHandler
 {
+    /**
+     * Offer ids reach `core.offers.id`, which is a `uuid` column: a malformed id
+     * is not a miss, it aborts the whole lookup. Anything that does not match is
+     * dropped from the candidate list instead, the way OfferPicker already drops
+     * an empty id.
+     */
+    private const OFFER_ID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+
     public function __construct(
         private readonly CampaignRepository $campaigns,
         private readonly OfferRepository $offers,
@@ -209,13 +217,13 @@ final class ClickHandler
     private static function candidateOfferId(array $target): string
     {
         $offerId = $target['offer_id'] ?? null;
-        return is_string($offerId) ? $offerId : '';
+        return is_string($offerId) && preg_match(self::OFFER_ID, $offerId) ? $offerId : '';
     }
 
     /** Resolve an active {offer:X} reference by UUID id, falling back to exact name. */
     private function resolveOffer(string $ref): ?Offer
     {
-        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $ref)) {
+        if (preg_match(self::OFFER_ID, $ref)) {
             $byId = $this->offers->findById($ref);
             if ($byId !== null) return $byId->isActive ? $byId : null;
         }
