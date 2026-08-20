@@ -34,6 +34,7 @@ beforeEach(function (): void {
     $cRepo = new CampaignRepository($this->db, new CampaignIdGenerator());
     $oRepo = new OfferRepository($this->db);
     $fRepo = new FlowRepository($this->db);
+    $this->offers = $oRepo;
     $compiler = new FilterCompiler();
     $this->handler = new ClickHandler(
         $cRepo, $oRepo,
@@ -53,7 +54,7 @@ beforeEach(function (): void {
 
     $this->camp = $cRepo->create(['name' => 'Click test', 'slug' => 'clkt01', 'is_active' => '1']);
     $this->offer = $oRepo->create(['name' => 'O', 'url' => 'https://example.com/?c={country}&cid={click_id}', 'is_active' => '1']);
-    $fRepo->create($this->camp->id, [
+    $this->flow = $fRepo->create($this->camp->id, [
         'name' => 'all → offer',
         'filters' => [],
         'target_type' => 'offers',
@@ -86,6 +87,52 @@ test('inactive campaign returns 404 regardless of trash_mode', function (): void
     expect($resp->getStatusCode())->toBe(404);
 });
 
+test('inactive offer does not receive new traffic', function (): void {
+    $this->db->execute(
+        'UPDATE core.offers SET is_active = false WHERE id = :id',
+        ['id' => $this->offer->id],
+    );
+
+    $resp = $this->handler->handle(
+        (new ServerRequestFactory())->createServerRequest('GET', '/clkt01'),
+        new Response(),
+        'clkt01',
+    );
+
+    expect($resp->getStatusCode())->toBe(204);
+    expect($resp->getHeaderLine('Location'))->toBe('');
+});
+
+test('inactive offer is removed before active offer weights are evaluated', function (): void {
+    $activeOffer = $this->offers->create([
+        'name' => 'Active fallback',
+        'url' => 'https://active.example/?cid={click_id}',
+        'is_active' => '1',
+    ]);
+    $this->db->execute(
+        'UPDATE core.offers SET is_active = false WHERE id = :id',
+        ['id' => $this->offer->id],
+    );
+    $this->db->execute(
+        'UPDATE core.flows SET target_offers = :targets::jsonb WHERE id = :id',
+        [
+            'id' => $this->flow->id,
+            'targets' => json_encode([
+                ['offer_id' => $this->offer->id, 'weight' => 100],
+                ['offer_id' => $activeOffer->id, 'weight' => 1],
+            ], JSON_THROW_ON_ERROR),
+        ],
+    );
+
+    $req = (new ServerRequestFactory())
+        ->createServerRequest('GET', '/clkt01')
+        ->withCookieParams(['vu' => '019dc137-724a-756c-923a-a392001e3d79']);
+    $resp = $this->handler->handle($req, new Response(), 'clkt01');
+
+    expect($resp->getStatusCode())->toBe(302);
+    expect($resp->getHeaderLine('Location'))->toStartWith('https://active.example/');
+});
+
 test('trash {offer:name} redirects to the offer url, macro-expanded', function (): void {
     $cRepo = new CampaignRepository($this->db, new CampaignIdGenerator());
     $c2 = $cRepo->create(['name' => 'Trash offer', 'slug' => 'trsh01', 'is_active' => '1']);
@@ -105,6 +152,28 @@ test('trash {offer:name} redirects to the offer url, macro-expanded', function (
     expect($loc)->toStartWith('https://example.com/');
     expect($loc)->toContain('cid=');          // offer's {click_id} was expanded
     expect($loc)->not->toContain('{offer:');  // reference resolved, not passed through literally
+});
+
+test('trash {offer:name} does not redirect to an inactive offer', function (): void {
+    $this->db->execute(
+        'UPDATE core.offers SET is_active = false WHERE id = :id',
+        ['id' => $this->offer->id],
+    );
+    $cRepo = new CampaignRepository($this->db, new CampaignIdGenerator());
+    $campaign = $cRepo->create(['name' => 'Inactive trash offer', 'slug' => 'trsh04', 'is_active' => '1']);
+    $this->db->execute(
+        'UPDATE core.campaigns SET trash_mode = 1, trash_url = :url WHERE id = :id',
+        ['url' => '{offer:O}', 'id' => $campaign->id],
+    );
+
+    $resp = $this->handler->handle(
+        (new ServerRequestFactory())->createServerRequest('GET', '/trsh04'),
+        new Response(),
+        'trsh04',
+    );
+
+    expect($resp->getStatusCode())->toBe(204);
+    expect($resp->getHeaderLine('Location'))->toBe('');
 });
 
 test('trash {offer:missing} falls back to 204 (no leaked macro)', function (): void {
