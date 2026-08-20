@@ -84,9 +84,18 @@ final class ClickHandler
         if ($flow !== null && $flow->targetType === 'offers' && $flow->targetOffers !== []) {
             // Flow override wins; null = inherit the campaign default.
             $sticky = $flow->stickyOffer ?? $campaign->stickyOffer;
-            $offerId = $this->picker->pick($flow->targetOffers, $ctx, $sticky);
+            $targetIds = array_map(
+                self::candidateOfferId(...),
+                $flow->targetOffers,
+            );
+            $activeOffers = $this->offers->findActiveByIds($targetIds);
+            $activeTargets = array_values(array_filter(
+                $flow->targetOffers,
+                static fn (array $target): bool => isset($activeOffers[self::candidateOfferId($target)]),
+            ));
+            $offerId = $this->picker->pick($activeTargets, $ctx, $sticky);
             if ($offerId !== null) {
-                $offer = $this->offers->findById($offerId);
+                $offer = $activeOffers[$offerId] ?? null;
                 if ($offer !== null) {
                     $outUrl = $this->macros->expand($offer->url, $ctx);
                 }
@@ -196,14 +205,22 @@ final class ClickHandler
         return $this->macros->expand($raw, $ctx);
     }
 
-    /** Resolve an {offer:X} reference by UUID id, falling back to exact name. */
+    /** @param array<string,mixed> $target */
+    private static function candidateOfferId(array $target): string
+    {
+        $offerId = $target['offer_id'] ?? null;
+        return is_string($offerId) ? $offerId : '';
+    }
+
+    /** Resolve an active {offer:X} reference by UUID id, falling back to exact name. */
     private function resolveOffer(string $ref): ?Offer
     {
         if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $ref)) {
             $byId = $this->offers->findById($ref);
-            if ($byId !== null) return $byId;
+            if ($byId !== null) return $byId->isActive ? $byId : null;
         }
-        return $this->offers->findByName($ref);
+        $byName = $this->offers->findByName($ref);
+        return $byName !== null && $byName->isActive ? $byName : null;
     }
 
     private function trash(?Campaign $c, string $url, ResponseInterface $response): ResponseInterface
