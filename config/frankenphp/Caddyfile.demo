@@ -41,7 +41,7 @@ https://{$DOMAIN} {
     }
 
     # ── Landing (root + Astro assets + RU + static files) ──
-    @landing path / /_astro/* /ru /ru/* /favicon.svg /favicon.ico /robots.txt
+    @landing path / /_astro/* /ru /ru/* /favicon.svg /favicon.ico /robots.txt /sitemap.xml /sitemap-index.xml /sitemap-*.xml
     handle @landing {
         root * /srv/landing
         file_server

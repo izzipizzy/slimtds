@@ -145,7 +145,7 @@
             <span class="brand-tick"></span>
             slim<span style="color:var(--color-terra-500)">/</span>TDS
         </span>
-        <span style="font-family:var(--font-mono);color:var(--color-faintest)"><?= e(getenv('APP_VERSION') ?: 'v0.5.5') ?></span>
+        <span style="font-family:var(--font-mono);color:var(--color-faintest)"><?= e(getenv('APP_VERSION') ?: '') ?></span>
         <span style="font-family:var(--font-mono);color:var(--color-faintest);text-transform:uppercase;letter-spacing:0.08em"><?= e(strtolower((string)($_ENV['APP_ENV'] ?? 'dev'))) ?></span>
 
         <!-- Density toggle -->

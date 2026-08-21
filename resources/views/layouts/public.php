@@ -88,7 +88,7 @@
                     style="background:transparent;border:1px solid var(--color-border);border-radius:3px;padding:2px 8px;cursor:pointer;color:var(--color-muted);display:inline-flex;align-items:center;font-family:var(--font-sans);font-size:0.7rem;letter-spacing:0.06em">
                 <span x-text="theme === 'dark' ? '☀ light' : '☾ dark'"></span>
             </button>
-            <span class="meta-mono" style="margin-left:auto;color:var(--color-faintest);font-size:0.7rem"><?= e(getenv('APP_VERSION') ?: 'v0.5.5') ?></span>
+            <span class="meta-mono" style="margin-left:auto;color:var(--color-faintest);font-size:0.7rem"><?= e(getenv('APP_VERSION') ?: '') ?></span>
         </div>
     </div>
 
