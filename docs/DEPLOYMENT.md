@@ -172,7 +172,7 @@ Set under repository **Settings → Secrets**:
 | `REGISTRY_USER` | Gitea username with `package:write` scope |
 | `REGISTRY_TOKEN` | Personal access token for the Gitea container registry |
 
-The release workflow (`.gitea/workflows/release.yml`) is triggered by `v*` tags and pushes the runtime image to the registry configured for that runner.
+The release workflow (`.github/workflows/release.yml`) is triggered by `v*` tags and pushes the runtime image to GitHub Container Registry.
 
 ### GitHub Actions (mirror)
 

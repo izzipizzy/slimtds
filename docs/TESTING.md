@@ -97,4 +97,4 @@ But this is rarely the right thing — prefer fixtures inside the test that repr
 
 ## CI
 
-Gitea Actions (primary) + GitHub Actions (mirror) run `unit + integration + arch` on every push. Browser tests are not run in CI (no Chromium in the runner image). See `docs/CI.md`.
+GitHub Actions runs `unit + integration + arch` on every push. Browser tests are not run in CI (no Chromium in the runner image). See `docs/CI.md`.

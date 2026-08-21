@@ -114,7 +114,7 @@ Requirements: **Docker Desktop** or **OrbStack** (recommended — provides auto-
 
 ```bash
 git clone https://github.com/izzipizzy/slimtds.git
-cd slimTDS
+cd slimtds
 
 # Copy env template and fill local secrets (generates APP_SECRET + ADMIN_PASSWORD)
 make env
@@ -209,23 +209,13 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full production setup instructi
 
 ## Architecture decisions
 
-See [spec](/Users/vid/code/_data_/plans/specs/2026-04-24-ztds-v2-design.md) §3 for the 23 architectural decisions (D1–D23).
-
-Notable:
+The design rests on 23 numbered decisions (D1–D23). The ones worth knowing before reading the code:
 - **D2** FrankenPHP worker mode everywhere (admin + engine). Classic mode is a fallback (`FRANKENPHP_WORKER_MODE=0`).
 - **D3** RANGE-partitioned `stats.clicks`, `stats.pixel_events`, `stats.visitors_fingerprints` with BRIN on `created_at`.
 - **D5** Flow filters = AND-groups within OR, stored as JSONB.
 - **D7** Visitor ID: cookie → server-FP (24h, hash(ip+ua+accept-lang+salt)) → FingerprintJS CE (30d) → new UUIDv7.
 - **D13** Campaign slug: Base58 (Bitcoin-style, excludes `0/O/I/l`), 6 chars, or custom alias `^[a-zA-Z0-9]{3,16}$`.
 - **D19** 15 Keitaro-like schema types per flow (HTTP 301–308, Meta/Double Meta, iFrame, HTML, Text, JSON, Curl, No Action, HTTP Code, Formula).
-
----
-
-## Plans
-
-- [M1 plan](/Users/vid/code/_data_/plans/plans/2026-04-24-slimtds-m1-scaffolding.md) — 25-task scaffolding breakdown
-- [M2 plan](/Users/vid/code/_data_/plans/plans/2026-04-25-slimtds-m2-engine.md) — 25-task traffic engine breakdown
-- [M3 plan](/Users/vid/code/_data_/plans/plans/2026-04-25-slimtds-m3-polish.md) — 17-task polish breakdown
 
 ---
 
@@ -314,7 +304,6 @@ node /tmp/pixel-test.mjs   # walks all 4 sites + 3 pages each, verifies events +
 ## Docs
 
 - [docs/TESTING.md](docs/TESTING.md) — test isolation, suites, browser tests
-- [docs/CI.md](docs/CI.md) — Gitea Actions + GitHub Actions mirror setup
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment (all three modes)
 
 ---

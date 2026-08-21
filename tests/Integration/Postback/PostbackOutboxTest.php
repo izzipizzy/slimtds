@@ -112,7 +112,13 @@ test('enqueue returns 0 for offer with no postback URLs', function (): void {
 
 test('tick marks delivery as delivered when target returns 2xx', function (): void {
     // Check if slimtds.local is reachable from the app container
-    $healthCheck = shell_exec('docker compose -f /Users/vid/code/slimTDS/docker-compose.yml -f /Users/vid/code/slimTDS/docker-compose.override.yml exec -T app curl -sk -o /dev/null -w "%{http_code}" https://slimtds.local/__health 2>/dev/null');
+    $root = dirname(__DIR__, 3);
+    $healthCheck = shell_exec(sprintf(
+        'docker compose -f %s/docker-compose.yml -f %s/docker-compose.override.yml exec -T app '
+        . 'curl -sk -o /dev/null -w "%%{http_code}" https://slimtds.local/__health 2>/dev/null',
+        $root,
+        $root,
+    ));
     if (trim((string)$healthCheck) !== '200') {
         $this->markTestSkipped('slimtds.local not reachable from test runner — skipping live delivery test');
     }
