@@ -20,9 +20,11 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
-      # Static site builds (built on the host via bun) served by Caddy.
-      - ./site/landing/dist:/srv/landing:ro
-      - ./site/dist:/srv/docs:ro
+      # Static builds of the landing and docs sites, which live in their own
+      # repositories and are built separately. Point these at an immutable
+      # release directory, never at a checkout Caddy would read mid-build.
+      - ${LANDING_DIST:?Set LANDING_DIST to the built landing dist directory}:/srv/landing:ro
+      - ${DOCS_DIST:?Set DOCS_DIST to the built docs dist directory}:/srv/docs:ro
     # Base healthcheck hits http://localhost:80/__health; demo Caddy serves only :443
     # (behind basic auth), so check the TLS listener instead.
     healthcheck:
