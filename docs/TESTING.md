@@ -97,4 +97,4 @@ But this is rarely the right thing — prefer fixtures inside the test that repr
 
 ## CI
 
-GitHub Actions runs `unit + integration + arch` on every push. Browser tests are not run in CI (no Chromium in the runner image). See `docs/CI.md`.
+GitHub Actions runs `unit + integration + arch` on every push. Browser tests are not run in CI (no Chromium in the runner image). The pipeline is `.github/workflows/ci.yml`.
