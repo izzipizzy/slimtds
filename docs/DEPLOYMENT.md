@@ -163,20 +163,12 @@ docker compose exec app php bin/console telegram:alerts
 
 ## CI/CD secrets
 
-### Gitea Actions
+No manual secrets are needed. `GITHUB_TOKEN` is provided by Actions, and
+`.github/workflows/release.yml` already declares `packages: write`, so a `v*` tag builds the
+runtime image and pushes it to GitHub Container Registry on its own.
 
-Set under repository **Settings → Secrets**:
-
-| Secret | Purpose |
-|---|---|
-| `REGISTRY_USER` | Gitea username with `package:write` scope |
-| `REGISTRY_TOKEN` | Personal access token for the Gitea container registry |
-
-The release workflow (`.github/workflows/release.yml`) is triggered by `v*` tags and pushes the runtime image to GitHub Container Registry.
-
-### GitHub Actions (mirror)
-
-`GITHUB_TOKEN` is auto-provided by Actions — no manual setup needed. The `release.yml` workflow has `packages: write` permission pre-configured and pushes to GHCR.
+If you fork this onto another forge, the release workflow is the only place that needs
+registry credentials.
 
 ---
 

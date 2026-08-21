@@ -94,8 +94,9 @@ own; this repository holds only the application.
 
 ### CI/CD
 
-- **Gitea Actions** (primary) — lint + PHPStan + test on every push; Docker image on `v*` tags → Gitea registry
-- **GitHub Actions** (mirror) — identical pipelines; image pushed to GHCR
+**GitHub Actions** — lint + PHPStan + the unit, integration and arch suites on every push
+(`.github/workflows/ci.yml`); on a `v*` tag, a runtime image is built and pushed to GHCR
+(`.github/workflows/release.yml`).
 
 ### Tests
 
