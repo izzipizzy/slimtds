@@ -1,7 +1,7 @@
 {
     frankenphp {
         worker {
-            file /app/config/frankenphp/worker.php
+            file /app/public/index.php
             # Prod: 4 vCPU. Run 8 workers (2x cores) so synchronous request
             # paths (DB roundtrips) don't pin a single core. Without `num`,
             # FrankenPHP runs 1 worker and saturates one CPU only.

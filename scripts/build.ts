@@ -27,6 +27,11 @@ const jsResult = await Bun.build({
   minify: true,
   naming: '[dir]/[name].[ext]',
   target: 'browser',
+  // IIFE for the same reason as the pixel and the session player: a bare bundle
+  // leaks its top-level declarations into the page, where any inline script that
+  // happens to use the same name stops the whole bootstrap from parsing.
+  // window.Alpine is assigned explicitly in resources/js/app.js and survives.
+  format: 'iife',
 })
 if (!jsResult.success) {
   console.error('JS build failed:', jsResult.logs)
@@ -43,10 +48,16 @@ for (const artifact of jsResult.outputs) {
 }
 
 // --- Build pixel.js → public/p.js (no hash, stable URL) ---
+// IIFE, for the same reason as the session player below: without it the bundle's
+// top-level declarations land in the host page's global scope. The pixel is
+// embedded on third-party landers we do not control, so a bare bundle both
+// pollutes them and breaks itself — rrweb's minified `var t` collided with a
+// `const t` on our own landing page and the whole script failed to parse.
 const pxResult = await Bun.build({
   entrypoints: [join(root, 'resources/js/pixel.js')],
   minify: true,
   target: 'browser',
+  format: 'iife',
 })
 if (!pxResult.success) {
   console.error('Pixel build failed:', pxResult.logs)

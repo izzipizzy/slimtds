@@ -36,7 +36,7 @@ final class JsRedirectSchema implements Schema
         $delay = max(0, (int)($config['delay'] ?? 0));
         $mode  = ($config['mode'] ?? 'replace') === 'assign' ? 'assign' : 'replace';
 
-        $jsTarget   = json_encode($target, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $jsTarget   = json_encode($target, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         $htmlTarget = htmlspecialchars($target, ENT_QUOTES);
 
         $jsCall = $delay > 0

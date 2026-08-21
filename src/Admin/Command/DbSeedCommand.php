@@ -37,7 +37,10 @@ final class DbSeedCommand extends Command
             $out->writeln('<comment>--fresh: wiping campaigns/offers/flows</comment>');
             $this->db->execute('DELETE FROM core.flows');
             $this->db->execute('DELETE FROM core.offers');
-            $this->db->execute('DELETE FROM core.campaigns');
+            // Keep the record-only "site" campaign: its UUID must stay stable
+            // across the 4h demo:reset so real landing/docs replays (which carry
+            // its campaign_id) don't orphan onto a recreated campaign row.
+            $this->db->execute("DELETE FROM core.campaigns WHERE slug <> 'site'");
         }
 
         if ($this->campaigns->count() > 0 && !$in->getOption('fresh')) {
@@ -61,11 +64,16 @@ final class DbSeedCommand extends Command
             'trash_mode' => 0,
             'notes' => 'Single-geo COD funnel. Reuses CIS Casino as fallback.',
         ]);
-        $this->campaigns->create([
-            'name' => 'slimTDS Site', 'slug' => 'site', 'is_active' => '1',
-            'trash_mode' => 0,
-            'notes' => 'Pixel-only: web analytics for the slimTDS site itself. No redirect traffic.',
-        ]);
+        // Idempotent: --fresh preserves the existing "site" row (above), so only
+        // create it on a first-ever seed. Recreating it would break the unique
+        // slug and mint a new UUID that orphans prior recordings.
+        if ($this->campaigns->findBySlug('site') === null) {
+            $this->campaigns->create([
+                'name' => 'slimTDS Site', 'slug' => 'site', 'is_active' => '1',
+                'trash_mode' => 0,
+                'notes' => 'Pixel-only: web analytics for the slimTDS site itself. No redirect traffic.',
+            ]);
+        }
 
         $out->writeln('<info>creating offers (global)…</info>');
         $cisCasino = $this->offers->create(['name' => 'CIS Casino', 'url' => 'https://example.com/cis-casino?subid={click_id}&c={country}', 'payout_default' => '40.00', 'currency' => 'USD', 'is_active' => '1']);

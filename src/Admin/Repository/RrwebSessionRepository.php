@@ -121,9 +121,23 @@ final class RrwebSessionRepository
         if ($expr === null || $field === 'campaign_id' || $field === 'fp') {
             return [];
         }
+
+        // Loose index scan ("skip scan"): hop between the handful of distinct
+        // values through the field's btree index instead of a full seq scan +
+        // DISTINCT over ~600k rows (which Postgres does not accelerate with an
+        // index). Turns a ~1.5-6s scan into a few ms. $expr comes from the
+        // hardcoded FILTERS whitelist — never user input. Each field is indexed
+        // (idx_rrweb_sessions_host + idx_rrweb_sessions_{country,browser,os,device}).
         $rows = $this->db->fetchAll(
-            "SELECT DISTINCT {$expr} AS v FROM stats.rrweb_sessions
-             WHERE {$expr} IS NOT NULL AND {$expr} <> '' ORDER BY v",
+            "WITH RECURSIVE t AS (
+                 SELECT (SELECT {$expr} FROM stats.rrweb_sessions
+                         WHERE {$expr} <> '' ORDER BY 1 LIMIT 1) AS v
+                 UNION ALL
+                 SELECT (SELECT {$expr} FROM stats.rrweb_sessions
+                         WHERE {$expr} > t.v AND {$expr} <> '' ORDER BY 1 LIMIT 1)
+                 FROM t WHERE t.v IS NOT NULL
+             )
+             SELECT v FROM t WHERE v IS NOT NULL ORDER BY v",
         );
         return array_values(array_map(
             static fn (array $r): string => (string)($r['v'] ?? ''),

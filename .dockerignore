@@ -1,3 +1,25 @@
-# Landing/docs live in the slimtds-site submodule mounted at site/ on the demo
-# VPS only. Exclude it so prod images (vendor stage COPY . ./) never ship it.
-site/
+# The vendor build stage does `COPY . ./`, so anything here would be baked into
+# the image. Keep large runtime data and VCS/dev cruft out of the build context.
+#   - var/backups holds pg_dump files (tens of GB) served at runtime via a bind
+#     mount — copying them into the image once exhausted the build disk.
+.git
+.gitea
+.github
+node_modules
+site
+var/backups
+var/cache
+*.dump
+*.log
+
+# Secrets: the runtime reads .env from a bind mount / compose env_file, never
+# from the image. Baking it in put APP_SECRET, DB_PASSWORD and the MaxMind and
+# Telegram tokens into image layers, readable by anyone who can pull the image.
+.env
+.env.*
+!.env.example
+
+# Dev dependencies: the vendor stage runs its own `composer install --no-dev`,
+# and a host vendor/ (which is how tests are run locally) would overwrite it
+# through `COPY . ./`, shipping pest/phpstan/faker into production images.
+vendor

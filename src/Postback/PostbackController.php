@@ -180,6 +180,14 @@ final class PostbackController
             if ($offer === null) {
                 return $this->json($response, ['ok' => false, 'error' => 'click offer no longer exists'], 410);
             }
+        } elseif ($tokenScope === 'offer') {
+            // Bind the click to the token's offer: an offer token may only
+            // register conversions for clicks that were actually routed to
+            // that offer. Without this, anyone holding one offer's token could
+            // POST another offer's subid and overwrite/hijack its conversion.
+            if ((string)($clickRow['offer_id'] ?? '') !== $offer->id) {
+                return $this->json($response, ['ok' => false, 'error' => 'token/click offer mismatch'], 409);
+            }
         }
 
         // Check whether a conversion already exists for this click_id

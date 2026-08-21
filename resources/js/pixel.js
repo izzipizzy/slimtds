@@ -63,9 +63,9 @@ import { record } from 'rrweb'
   // ── Endpoint URL ────────────────────────────────────────────────────────
   // Relative `p/event` (no leading slash) so the endpoint resolves next to
   // wherever p.js was served from. Two cases this handles:
-  //   1. <script src="https://example.com/p.js?c=X">      → POST https://example.com/p/event
+  //   1. <script src="https://tds.example.com/p.js?c=X">      → POST https://tds.example.com/p/event
   //   2. <script src="/a/p.js?c=X"> (proxied via nginx)   → POST /a/p/event   (same-origin, no CORS)
-  // Case 2 hides example.com from the visible network footprint of the host site.
+  // Case 2 hides tds.example.com from the visible network footprint of the host site.
   const base = (script && script.src) ? script.src : location.href
   let eventEndpoint
   try {

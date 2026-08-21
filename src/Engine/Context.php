@@ -33,8 +33,8 @@ final class Context
     public ?string $refererDomain = null;
 
     // Lander context (from X-Lander-Host / X-Lander-Path forwarded by SEO-sites' nginx).
-    public ?string $landerHost = null;     // full hostname, e.g. "casinoroyalatino.com"
-    public ?string $landerDomain = null;   // host without TLD, e.g. "casinoroyalatino"
+    public ?string $landerHost = null;     // full hostname, e.g. "lander.example.com"
+    public ?string $landerDomain = null;   // host without TLD, e.g. "lander"
     public ?string $landerButton = null;   // /play/<button>/ segment, e.g. "betsson"
 
     /** @var array<string,string> */ public array $utm = [];

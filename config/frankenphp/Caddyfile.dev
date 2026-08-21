@@ -1,7 +1,7 @@
 {
     frankenphp {
         worker {
-            file /app/config/frankenphp/worker.php
+            file /app/public/index.php
             watch
             num 8
         }

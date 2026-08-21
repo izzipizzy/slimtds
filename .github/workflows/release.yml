@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          docker buildx build -f docker/Dockerfile --target runtime \
+            -t ghcr.io/${{ github.repository_owner }}/slim-tds:${TAG} \
+            -t ghcr.io/${{ github.repository_owner }}/slim-tds:latest \
+            --push .

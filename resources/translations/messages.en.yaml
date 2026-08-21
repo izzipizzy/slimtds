@@ -10,6 +10,7 @@ password:
   mismatch: New and confirmation do not match
   same_as_old: New password must differ from the current one
   changed: Password changed successfully
+  demo_disabled: Password change is disabled in the demo
 
 auth:
   title: Sign in

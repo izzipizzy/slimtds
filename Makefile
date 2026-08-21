@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help env up down restart logs shell psql migrate seed seed-fresh seed-stats test test-up test-down test-unit test-integration test-arch test-browser stan benchmark build build-assets clean pixel-test-up pixel-test-down prod-up-cf prod-up-direct prod-down deploy
+.PHONY: help env up down restart logs shell psql migrate seed seed-fresh seed-stats test test-up test-down test-unit test-integration test-arch test-browser stan benchmark build build-assets clean pixel-test-up pixel-test-down prod-up-cf prod-up-direct prod-down demo-up demo-down deploy
 
 ## help — Show this help
 help:
@@ -151,6 +151,18 @@ prod-down:
 	else \
 		echo "DEPLOY_MODE in .env is neither 'cf*' nor 'direct'; pick one and re-run."; exit 1; \
 	fi
+
+## demo-up — bring up the self-resetting demo stack (run on the demo VPS)
+demo-up:
+	@grep -qE '^DEMO_MODE=1' .env 2>/dev/null || { echo "Set DEMO_MODE=1 in .env first"; exit 1; }
+	@grep -qE '^DEMO_DOMAIN=.' .env 2>/dev/null || { echo "Set DEMO_DOMAIN=demo.your.tld in .env first"; exit 1; }
+	docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+	@echo ""
+	@echo "Demo stack up. Caddy will provision Let's Encrypt cert for $$(grep ^DEMO_DOMAIN= .env | cut -d= -f2). Resets every 4h."
+
+## demo-down — stop the demo stack
+demo-down:
+	docker compose -f docker-compose.yml -f docker-compose.demo.yml down
 
 ## deploy — Print deployment guide
 deploy:

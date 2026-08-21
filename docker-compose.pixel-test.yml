@@ -51,6 +51,21 @@ services:
     networks: [pixel-test]
     restart: unless-stopped
 
+  # Real Astro form site (separate repo) built from its own Dockerfile, which
+  # keeps its /tg/send Telegram forward + ratelimit nginx config. The pixel
+  # snippet in its Base.astro points at https://slimtds.local/p.js?c=demoform,
+  # so it exercises the rrweb recorder against the local slimTDS.
+  demoform:
+    build:
+      context: ../sdt-seo/sites/demoform.doxer.top
+    environment:
+      TG_TOKEN: "${TG_TOKEN:-}"
+      TG_CHAT: "${TG_CHAT:-}"
+    labels:
+      dev.orbstack.domains: demoform.local
+    networks: [pixel-test]
+    restart: unless-stopped
+
 networks:
   pixel-test:
     driver: bridge

@@ -44,6 +44,13 @@ final class PasswordController
 
     public function post(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
     {
+        // Demo instances are shared and auto-reset on a timer — if one visitor
+        // changes the admin password, everyone else is locked out until the next
+        // reset. Reject the change here so the public credentials stay fixed.
+        if (getenv('DEMO_MODE') === '1') {
+            return $this->fail('password.demo_disabled', [], $response, $view);
+        }
+
         if (!isset($_SESSION['admin_id']) || !is_int($_SESSION['admin_id'])) {
             return $response->withHeader('Location', '/admin/login')->withStatus(302);
         }

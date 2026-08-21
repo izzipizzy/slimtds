@@ -130,6 +130,9 @@
         </div>
     </div>
 
-    <script async src="https://example.com/p.js?c=mainpage"></script>
+<?php $pixelSrc = getenv('PUBLIC_PIXEL_SRC'); ?>
+<?php if ($pixelSrc !== false && $pixelSrc !== ''): ?>
+    <script async src="<?= e($pixelSrc) ?>"></script>
+<?php endif; ?>
 </body>
 </html>

@@ -155,7 +155,7 @@ final class ClickHandler
         if ($landerHost !== '') {
             $ctx->landerHost = $landerHost;
             $h = preg_replace('/^www\./', '', $landerHost) ?? $landerHost;
-            // Strip the rightmost label as the TLD ("casinoroyalatino.com" → "casinoroyalatino").
+            // Strip the rightmost label as the TLD ("lander.example.com" → "lander").
             // Compound TLDs (.co.uk, etc.) aren't currently in use across our SEO sites.
             $ctx->landerDomain = preg_match('/^(.+)\.[^.]+$/', $h, $m) ? $m[1] : $h;
         }
@@ -241,7 +241,7 @@ final class ClickHandler
                 return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
             case 7: // JS Redirect
                 if (!$hasUrl) return $response->withStatus(204);
-                $j = json_encode($url, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                $j = json_encode($url, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
                 $h = htmlspecialchars($url, ENT_QUOTES);
                 $body = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
                       . "<meta name=\"referrer\" content=\"no-referrer\">"

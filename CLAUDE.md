@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 slimTDS — Slim 4 + FrankenPHP (worker mode) + PostgreSQL 18 traffic distribution system. Self-hosted, single-tenant, internal tool. Modern rewrite of zTDS v0.8.4. Stack: PHP 8.4, Pest 4, Phinx, PHP-DI, Tailwind 4 + Alpine.js + ECharts, FingerprintJS CE pixel.
 
+Status: M1–M4 done (`v0.4.0`). Plans live under `/Users/vid/code/_data_/plans/plans/2026-04-2{4,5}-slimtds-m{1,2,3}-*.md` and the architecture spec under `/Users/vid/code/_data_/plans/specs/2026-04-24-ztds-v2-design.md` (23 architectural decisions D1–D23). Read the README for full feature inventory before non-trivial work.
 
 ## Everything goes through Docker
 
@@ -128,4 +129,4 @@ Compose layering, picked at runtime via `DEPLOY_MODE` in `.env` and `docker/entr
 
 ## CI
 
-GitHub Actions runs lint + PHPStan + the full Pest suite on every push (`.github/workflows/ci.yml`).
+Gitea Actions is primary, GitHub Actions is a mirror — both run lint + PHPStan + the full Pest suite on every push, and build a Docker image on `v*` tags (Gitea registry / GHCR). Keep both pipelines in sync when editing one.

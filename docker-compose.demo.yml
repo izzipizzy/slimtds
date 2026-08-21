@@ -1,0 +1,67 @@
+# Demo overlay — layered like the prod overlays, for the dedicated demo VPS.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+# Requires DEMO_MODE=1 and DEMO_DOMAIN in .env.
+services:
+  app:
+    environment:
+      DEPLOY_MODE: demo
+      APP_ENV: prod
+      DEMO_MODE: "1"
+      DOMAIN: ${DEMO_DOMAIN:?Set DEMO_DOMAIN in .env (e.g. demo.example.com)}
+      # Public base URL for generated snippets (pixel embed, traffic URL, postback URLs).
+      # Without this it falls back to .env's APP_URL (dev: slimtds.local).
+      APP_URL: https://${DEMO_DOMAIN}
+      # Whole-domain basic auth (Caddyfile.demo) reads DEMO_AUTH_USER / DEMO_AUTH_HASH
+      # from .env via env_file (literal — avoids compose ${} mangling the bcrypt $'s).
+      # Generate the hash: caddy hash-password --plaintext dev
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      # Static site builds (built on the host via bun) served by Caddy.
+      - ./site/landing/dist:/srv/landing:ro
+      - ./site/dist:/srv/docs:ro
+    # Base healthcheck hits http://localhost:80/__health; demo Caddy serves only :443
+    # (behind basic auth), so check the TLS listener instead.
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tln 2>/dev/null | grep -q ':443 ' || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      db:
+        condition: service_healthy
+      demo-init:
+        condition: service_completed_successfully
+
+  cron:
+    # APP_ENV pinned to dev (overriding .env): the demo must never send Telegram
+    # digests/alerts — its data resets every 4h and would be pure noise. Pinning it
+    # here keeps that true even if the operator sets APP_ENV=prod in .env.
+    environment:
+      APP_ENV: dev
+      DEMO_MODE: "1"
+
+  # One-shot: migrate the schema, then seed the baseline, before app serves traffic.
+  # Reuses the slimtds:local image built by the `app` service (same pattern as `cron`);
+  # `make demo-up` runs `up -d --build`, so the tag exists before this starts.
+  demo-init:
+    image: slimtds:local
+    env_file: .env
+    environment:
+      DEMO_MODE: "1"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["php /app/bin/console db:migrate && php /app/bin/console demo:reset"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - slimtds
+    restart: "no"
+
+volumes:
+  caddy-data:
+  caddy-config:

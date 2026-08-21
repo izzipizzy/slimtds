@@ -17,7 +17,7 @@ use Psr\Http\Message\ServerRequestInterface;
  *      IP, while X-Real-IP is set by host nginx with the real client IP and
  *      passes through the second CF hop intact.
  *   2. CF-Connecting-IP — Cloudflare's actual TCP peer for direct (non-proxied)
- *      example.com hits.
+ *      tds.example.com hits.
  *   3. True-Client-IP — alternative CF header (Enterprise plans), kept as a
  *      best-effort fallback.
  *   4. X-Forwarded-For — first IP in the comma-separated chain.
