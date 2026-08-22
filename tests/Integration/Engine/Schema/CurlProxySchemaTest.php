@@ -6,19 +6,14 @@ use App\Engine\Context;
 use App\Engine\Schema\CurlProxySchema;
 use Slim\Psr7\Response;
 
-test('fetches local health endpoint', function (): void {
+test('returns 502 when the upstream is unreachable', function (): void {
     $schema = new CurlProxySchema();
     $ctx = new Context('1.1.1.1', 'curl/8.0', 'demo', time());
-    $resp = $schema->respond($ctx, 'https://slimtds.local/__health', [], new Response());
-
-    if ($resp->getStatusCode() === 502) {
-        markTestSkipped('Could not connect to slimtds.local — skipping curl proxy test');
-    }
-
-    expect($resp->getStatusCode())->toBe(200);
-    $data = json_decode((string)$resp->getBody(), true);
-    expect($data)->toBeArray();
-    expect($data['ok'] ?? $data['status'] ?? null)->not->toBeNull();
+    // A reserved .invalid TLD never resolves, so curl fails and the proxy schema
+    // must degrade gracefully to 502 (not throw). Deterministic — no live
+    // endpoint or network reachability required, so it is CI-portable.
+    $resp = $schema->respond($ctx, 'https://health.slimtds.invalid/', [], new Response());
+    expect($resp->getStatusCode())->toBe(502);
 });
 
 test('returns 502 when url is empty', function (): void {
