@@ -16,6 +16,42 @@ final class OfferRepository
         return $row === null ? null : Offer::fromRow($row);
     }
 
+    /**
+     * Active offers by id, keyed by id, for routing lookups.
+     * Ids are expected pre-validated as uuid-shaped — `core.offers.id` is a
+     * `uuid` column and anything else aborts the statement with 22P02.
+     *
+     * @param list<string> $ids
+     * @return array<string,Offer>
+     */
+    public function findActiveByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            $ids,
+            static fn (string $id): bool => $id !== '',
+        )));
+        if ($ids === []) return [];
+
+        $placeholders = [];
+        $params = [];
+        foreach ($ids as $i => $id) {
+            $placeholders[] = ':id' . $i;
+            $params['id' . $i] = $id;
+        }
+
+        $rows = $this->db->fetchAll(
+            'SELECT * FROM core.offers WHERE is_active AND id IN (' . implode(',', $placeholders) . ')',
+            $params,
+        );
+        $offers = [];
+        foreach ($rows as $row) {
+            $offer = Offer::fromRow($row);
+            $offers[$offer->id] = $offer;
+        }
+
+        return $offers;
+    }
+
     public function findByToken(string $token): ?Offer
     {
         $row = $this->db->fetchOne('SELECT * FROM core.offers WHERE postback_token = :t', ['t' => $token]);
