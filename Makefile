@@ -1,3 +1,15 @@
+# Build identity, computed on the host where git exists. Exported so both
+# `docker compose build` (build args) and the dev overlay (runtime env) see the
+# same values. A checkout with no tags yields a bare hash, which the app
+# reports as a source build — never as a version it does not have.
+GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null)
+GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null)
+GIT_DATE    := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+export APP_VERSION    := $(GIT_VERSION)
+export APP_COMMIT     := $(GIT_COMMIT)
+export APP_BUILD_DATE := $(GIT_DATE)
+export APP_BUILD_KIND := source
+
 .DEFAULT_GOAL := help
 .PHONY: help env up down restart logs shell psql migrate seed seed-fresh seed-stats test test-up test-down test-unit test-integration test-arch test-browser stan benchmark build build-assets clean pixel-test-up pixel-test-down prod-up-cf prod-up-direct prod-down demo-up demo-down deploy
 

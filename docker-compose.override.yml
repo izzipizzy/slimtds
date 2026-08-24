@@ -12,6 +12,15 @@ services:
     environment:
       DEPLOY_MODE: dev
       FRANKENPHP_WORKER_MODE: 1
+      # Dev only. The image is rarely rebuilt here while the source is bind-
+      # mounted over /app, so the baked identity goes stale immediately; these
+      # come from the Makefile on every `make up`. This override lives in the
+      # dev file precisely because prod must never have one — there it would
+      # erase a release image's baked identity.
+      APP_VERSION: ${APP_VERSION:-}
+      APP_COMMIT: ${APP_COMMIT:-}
+      APP_BUILD_DATE: ${APP_BUILD_DATE:-}
+      APP_BUILD_KIND: ${APP_BUILD_KIND:-source}
 
   # In dev the cron container must run the LIVE source like app, otherwise
   # newly-added console commands (e.g. rrweb:flush) live only in the mounted
@@ -22,6 +31,14 @@ services:
       - ./:/app
       - /app/vendor
       - /app/node_modules
+    # cron declares only env_file in the base compose, so it inherits nothing
+    # from app.environment — and cron is the container that runs version:check.
+    # Both must agree about which build is running.
+    environment:
+      APP_VERSION: ${APP_VERSION:-}
+      APP_COMMIT: ${APP_COMMIT:-}
+      APP_BUILD_DATE: ${APP_BUILD_DATE:-}
+      APP_BUILD_KIND: ${APP_BUILD_KIND:-source}
 
   db:
     ports:

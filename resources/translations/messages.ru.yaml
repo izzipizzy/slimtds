@@ -662,3 +662,10 @@ sessions:
   in_pixel: пиксель
   filtered_by_fp: 'Фильтр по фингерпринту'
   clear_filter: сбросить
+
+version:
+  behind_title: 'Доступна новая версия'
+  source_title: 'Собрано из рабочего дерева, а не из релизного тега'
+  stale_title: 'Проверка обновлений давно не проходила успешно'
+  toast_behind: 'Доступна новая версия %s'
+  how_to_update: 'как обновиться'

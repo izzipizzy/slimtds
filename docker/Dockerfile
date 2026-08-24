@@ -57,6 +57,22 @@ RUN echo "memory_limit=256M" > /usr/local/etc/php/conf.d/zz-app.ini \
  && echo "opcache.jit_buffer_size=64M" >> /usr/local/etc/php/conf.d/zz-app.ini \
  && echo "apc.enable_cli=1" >> /usr/local/etc/php/conf.d/zz-app.ini
 
+# Build identity. One ARG per instruction — unlike ENV, ARG declares a single
+# build argument and the multi-name form fails the build.
+#
+# These are baked, never overridden at runtime. A compose `environment` mapping
+# overrides the image ENV even when interpolation yields an empty string, so a
+# `${APP_VERSION:-}` entry would erase a correctly stamped release image on an
+# ordinary `docker compose up`. Dev overrides live in docker-compose.override.yml.
+ARG APP_VERSION=""
+ARG APP_COMMIT=""
+ARG APP_BUILD_DATE=""
+ARG APP_BUILD_KIND=""
+ENV APP_VERSION=$APP_VERSION \
+    APP_COMMIT=$APP_COMMIT \
+    APP_BUILD_DATE=$APP_BUILD_DATE \
+    APP_BUILD_KIND=$APP_BUILD_KIND
+
 WORKDIR /app
 
 COPY --from=vendor    /app /app

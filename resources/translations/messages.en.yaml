@@ -646,3 +646,10 @@ sessions:
   in_pixel: pixel
   filtered_by_fp: 'Filtered by fingerprint'
   clear_filter: clear
+
+version:
+  behind_title: 'A newer release is available'
+  source_title: 'Built from a working checkout, not from a release tag'
+  stale_title: 'Update check has not succeeded recently'
+  toast_behind: 'A newer release is available: %s'
+  how_to_update: 'how to update'

@@ -7,6 +7,7 @@ namespace App\Admin\Controller;
 use App\Admin\Repository\AdminRepository;
 use App\Shared\Auth\AuthEventLogger;
 use App\Shared\Auth\PasswordHasher;
+use App\Shared\Version\UpdateStatus;
 use App\Shared\View\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -21,6 +22,7 @@ final class LoginController
         private readonly AdminRepository $admins,
         private readonly PasswordHasher $hasher,
         private readonly AuthEventLogger $audit,
+        private readonly UpdateStatus $updateStatus,
     ) {}
 
     public function postLogin(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
@@ -61,7 +63,11 @@ final class LoginController
             userAgent: $ua,
         );
 
-        // If must change password, redirect to /admin/password, else dashboard
+        $this->queueUpdateToast($view);
+
+        // If must change password, redirect to /admin/password, else dashboard.
+        // The flash survives the redirect either way, so the toast still shows
+        // on the forced password-change page.
         $target = $admin->mustChangePassword ? '/admin/password' : '/admin';
         return $response->withHeader('Location', $target)->withStatus(302);
     }
@@ -111,6 +117,30 @@ final class LoginController
         );
 
         return $response->withHeader('Location', '/admin/login')->withStatus(302);
+    }
+
+    /**
+     * One toast per login, owned here rather than by the layout: layout globals
+     * render on every page, so a state-driven toast would follow the operator
+     * around instead of greeting them once.
+     *
+     * A failure here queues nothing. A login must never fail because an update
+     * check could not be read.
+     */
+    private function queueUpdateToast(View $view): void
+    {
+        try {
+            $verdict = $this->updateStatus->resolve();
+            if (!$verdict->isBehind()) {
+                return;
+            }
+            flash_push('info', sprintf(
+                $view->i18n->t('version.toast_behind'),
+                (string)$verdict->latestVersion,
+            ));
+        } catch (\Throwable) {
+            // deliberately silent
+        }
     }
 
     private function resolveIp(ServerRequestInterface $request): ?string

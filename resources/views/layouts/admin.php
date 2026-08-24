@@ -145,7 +145,7 @@
             <span class="brand-tick"></span>
             slim<span style="color:var(--color-terra-500)">/</span>TDS
         </span>
-        <span style="font-family:var(--font-mono);color:var(--color-faintest)"><?= e(getenv('APP_VERSION') ?: '') ?></span>
+        <?php require __DIR__ . '/../_partials/version-chip.php'; ?>
         <span style="font-family:var(--font-mono);color:var(--color-faintest);text-transform:uppercase;letter-spacing:0.08em"><?= e(strtolower((string)($_ENV['APP_ENV'] ?? 'dev'))) ?></span>
 
         <!-- Density toggle -->
@@ -161,6 +161,12 @@
             <span class="kbd">⌘ K</span>
             <span style="font-family:var(--font-sans);font-size:0.7rem"><?= e(t('cmdk.hint') ?? 'search') ?></span>
         </span>
+
+        <!-- Author links -->
+        <a href="https://t.me/izzypizzy_seo" target="_blank" rel="noopener"
+           style="text-decoration:none;color:var(--color-faint);font-family:var(--font-sans);font-size:0.7rem;letter-spacing:0.04em">telegram</a>
+        <a href="https://izzyypizzy.com/" target="_blank" rel="noopener"
+           style="text-decoration:none;color:var(--color-faint);font-family:var(--font-sans);font-size:0.7rem;letter-spacing:0.04em">izzyypizzy.com</a>
 
         <span style="margin-left:auto;font-family:var(--font-mono);color:var(--color-faintest)" title="Page render time"><?= number_format((microtime(true) - (defined('APP_START') ? APP_START : microtime(true))) * 1000, 1) ?>ms</span>
     </footer>

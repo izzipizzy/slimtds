@@ -19,7 +19,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          SHA="$(git rev-parse --short HEAD)"
+          # A release image with no identity is a defect, not something to
+          # paper over at runtime: the whole feature rests on this being true.
+          if [ -z "$TAG" ] || [ -z "$SHA" ]; then
+            echo "refusing to build: could not resolve tag or revision" >&2
+            exit 1
+          fi
           docker buildx build -f docker/Dockerfile --target runtime \
+            --build-arg APP_VERSION="${TAG}" \
+            --build-arg APP_COMMIT="${SHA}" \
+            --build-arg APP_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --build-arg APP_BUILD_KIND=release \
             -t ghcr.io/${{ github.repository_owner }}/slim-tds:${TAG} \
             -t ghcr.io/${{ github.repository_owner }}/slim-tds:latest \
             --push .

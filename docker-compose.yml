@@ -4,6 +4,19 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       target: runtime
+      # Build identity, baked into the image. Supplied by the Makefile targets
+      # (which compute them from git on the host) and by both release
+      # workflows. Absent → the image honestly reports "unknown".
+      #
+      # There is deliberately NO matching `environment:` block: a compose
+      # environment entry overrides the image ENV even when it interpolates to
+      # an empty string, which would erase the identity of a release image
+      # started through the documented path.
+      args:
+        APP_VERSION: ${APP_VERSION:-}
+        APP_COMMIT: ${APP_COMMIT:-}
+        APP_BUILD_DATE: ${APP_BUILD_DATE:-}
+        APP_BUILD_KIND: ${APP_BUILD_KIND:-}
     image: slimtds:local
     env_file: .env
     environment:
