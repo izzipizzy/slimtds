@@ -208,6 +208,82 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full production setup instructi
 
 ---
 
+## Updating an existing install
+
+Production runs from a **git checkout and builds its own image** — `docker-compose.yml`
+carries `build:` and is the base layer for both prod overlays. So an update is: pull, rebuild,
+migrate. There is no `docker pull` step.
+
+> **Pull from `origin` (Gitea), not from `github`.** The two remotes do **not** share history —
+> `git merge-base origin/main github/main` returns nothing. Pulling from `github` into this
+> checkout will fail or produce a mess. `origin` is the line this server was installed from.
+
+### For a human
+
+```bash
+cd /path/to/slimTDS
+
+# 1. Back up first. Restoring is only possible if you did this.
+docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml \
+  exec app php bin/console db:backup
+
+# 2. Get the new code
+git fetch origin
+git log --oneline HEAD..origin/main     # read what you are about to deploy
+git pull --ff-only origin main
+
+# 3. Rebuild and restart. --build is required: plain `up -d` reuses the old image.
+docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml up -d --build
+
+# 4. Migrate
+docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml \
+  exec app php bin/console db:migrate
+
+# 5. Verify
+docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml ps
+curl -sS -o /dev/null -w '%{http_code}\n' https://your.domain/admin/login   # expect 200
+```
+
+Swap `docker-compose.prod.cf.yml` for `docker-compose.prod.direct.yml` in direct mode.
+
+**Do not use `make migrate` on a production server.** It runs bare `docker compose`, which
+auto-merges `docker-compose.override.yml` — the dev overlay, present in every checkout. That
+bind-mounts the host source over `/app` and forces `DEPLOY_MODE=dev`. Always pass the `-f`
+pair explicitly, which suppresses the override.
+
+Assets need no separate step: `public/assets/` and `p.js` are produced by the
+`assets-builder` stage inside the image, so `--build` refreshes them.
+
+If step 3 or 4 fails, the previous image is still on the host. Roll back with
+`git reset --hard <previous-sha> && docker compose -f … up -d --build`, and restore the
+step-1 dump only if a migration already changed the schema — see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#backup-and-restore).
+
+### For an AI agent
+
+Same rules as [`docs/AI-INSTALL.md`](docs/AI-INSTALL.md) §0 apply: non-destructive, never
+print secrets, never edit application source, report honestly. Additionally:
+
+1. **Back up before anything else.** Run step 1 above and confirm a new `.dump` appears in
+   `var/backups/`. No backup, no update — full stop.
+2. **Read the incoming diff before applying it.** Run `git log --oneline HEAD..origin/main`
+   and `git diff --stat HEAD..origin/main`. If it touches `migrations/`, say so in your
+   report before proceeding.
+3. **Never `git pull` without `--ff-only`.** A merge commit created by an agent on a
+   production checkout is how the histories in this project diverged in the first place.
+4. **Never pull from the `github` remote.** Unrelated history — see the warning above.
+5. **Always pass both `-f` files.** Every command in this section is written that way for a
+   reason; a bare `docker compose` silently applies the dev overlay.
+6. **Verify before reporting success.** All containers `running`, `/admin/login` returns 200,
+   and `docker compose … exec app php bin/console db:migrate` reports no pending migrations
+   on a second run. If any check fails, roll back and report the failure — a half-applied
+   update described as done is worse than a failed one.
+7. **Stop conditions.** Working tree not clean → stop, do not stash. `git pull --ff-only`
+   rejected → stop, the checkout has diverged. Migration exits non-zero → stop, roll back,
+   report.
+
+---
+
 ## Architecture decisions
 
 The design rests on 23 numbered decisions (D1–D23). The ones worth knowing before reading the code:
