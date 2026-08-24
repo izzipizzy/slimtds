@@ -6,6 +6,25 @@ use App\Shared\Auth\PasswordHasher;
 use App\Shared\Db\Partitions;
 use DI\ContainerBuilder;
 
+/**
+ * Update-check configuration. Read in one place so the web process and the
+ * cron process cannot disagree about whether checking is on or which
+ * repository is being checked.
+ */
+if (!function_exists('updateCheckEnabled')) {
+    function updateCheckEnabled(): bool
+    {
+        return filter_var($_ENV['UPDATE_CHECK_ENABLED'] ?? 'true', FILTER_VALIDATE_BOOL);
+    }
+}
+if (!function_exists('updateCheckRepo')) {
+    function updateCheckRepo(): string
+    {
+        $r = $_ENV['UPDATE_CHECK_REPO'] ?? '';
+        return is_string($r) && $r !== '' ? $r : 'izzipizzy/slimtds';
+    }
+}
+
 return static function (): \DI\Container {
     $builder = new ContainerBuilder();
     $builder->useAutowiring(true);
@@ -118,6 +137,36 @@ return static function (): \DI\Container {
                 viewsDir: dirname(__DIR__) . '/resources/views',
                 assets: $c->get(\App\Shared\Asset\Manifest::class),
                 i18n:   $c->get(\App\Shared\I18n\I18n::class),
+                updateStatus: $c->get(\App\Shared\Version\UpdateStatus::class),
+            );
+        },
+
+        // ── Version ticker / update check ───────────────────────────────────
+        \App\Shared\Version\BuildInfo::class => static fn (): \App\Shared\Version\BuildInfo =>
+            \App\Shared\Version\BuildInfo::fromSuperglobals(),
+        \App\Shared\Version\UpdateStatusRepository::class => \DI\autowire(),
+        \App\Shared\Version\UpdateStateReader::class => \DI\get(\App\Shared\Version\UpdateStatusRepository::class),
+        \App\Shared\Version\ReleaseFetcher::class => static fn (): \App\Shared\Version\ReleaseFetcher =>
+            new \App\Shared\Version\GithubReleaseFetcher(
+                token: (static function (): ?string {
+                    $t = $_ENV['UPDATE_CHECK_TOKEN'] ?? null;
+                    return is_string($t) && $t !== '' ? $t : null;
+                })(),
+            ),
+        \App\Shared\Version\UpdateStatus::class => static function (\DI\Container $c): \App\Shared\Version\UpdateStatus {
+            return new \App\Shared\Version\UpdateStatus(
+                $c->get(\App\Shared\Version\BuildInfo::class),
+                $c->get(\App\Shared\Version\UpdateStatusRepository::class),
+                updateCheckEnabled(),
+                updateCheckRepo(),
+            );
+        },
+        \App\Cron\Command\VersionCheckCommand::class => static function (\DI\Container $c): \App\Cron\Command\VersionCheckCommand {
+            return new \App\Cron\Command\VersionCheckCommand(
+                $c->get(\App\Shared\Version\UpdateStatusRepository::class),
+                $c->get(\App\Shared\Version\ReleaseFetcher::class),
+                updateCheckEnabled(),
+                updateCheckRepo(),
             );
         },
     ]);

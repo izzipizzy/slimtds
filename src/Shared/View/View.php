@@ -6,6 +6,7 @@ namespace App\Shared\View;
 
 use App\Shared\Asset\Manifest;
 use App\Shared\I18n\I18n;
+use App\Shared\Version\UpdateStatus;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -23,7 +24,28 @@ final class View
         public readonly string $viewsDir,
         public readonly Manifest $assets,
         public readonly I18n $i18n,
+        private readonly ?UpdateStatus $updateStatus = null,
     ) {}
+
+    /**
+     * Stable values every layout can rely on, merged in at layout render time.
+     * Both layouts show the running build, so threading it through every
+     * controller would be noise — and a template cannot resolve a service.
+     *
+     * Never throws: the footer is decorative and must not be able to 500 an
+     * admin page. A failure degrades to the `unknown` state.
+     *
+     * @return array<string,mixed>
+     */
+    private function layoutGlobals(): array
+    {
+        try {
+            $verdict = $this->updateStatus?->resolve();
+        } catch (\Throwable) {
+            $verdict = null;
+        }
+        return ['__update__' => $verdict];
+    }
 
     /**
      * Render a template with data; returns HTML string.
@@ -56,7 +78,7 @@ final class View
 
             if (is_string($layout)) {
                 $layoutPath = $this->resolvePath($layout);
-                return $this->capture($layoutPath, array_merge($data, [
+                return $this->capture($layoutPath, array_merge($this->layoutGlobals(), $data, [
                     '__content__' => $content,
                 ]));
             }

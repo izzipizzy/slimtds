@@ -44,6 +44,7 @@ $commands = [
     App\Cron\Command\PostbackDeliverCommand::class,
     App\Cron\Command\InboxFlushCommand::class,
     App\Cron\Command\RrwebFlushCommand::class,
+    App\Cron\Command\VersionCheckCommand::class,
 ];
 
 // JournaledApplication wraps doRunCommand so every invocation lands in

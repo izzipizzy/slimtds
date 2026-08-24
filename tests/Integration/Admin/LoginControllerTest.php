@@ -10,6 +10,10 @@ use App\Shared\Auth\PasswordHasher;
 use App\Shared\Db\Connection;
 use App\Shared\I18n\I18n;
 use App\Shared\I18n\TranslatorFactory;
+use App\Shared\Version\BuildInfo;
+use App\Shared\Version\UpdateState;
+use App\Shared\Version\UpdateStateReader;
+use App\Shared\Version\UpdateStatus;
 use App\Shared\View\View;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
@@ -32,11 +36,23 @@ beforeEach(function (): void {
         ['l' => 'alice', 'h' => $this->hasher->hash('correct-horse'), 'm' => 'false'],
     );
 
-    $this->controller = new LoginController(
-        new AdminRepository($this->db),
-        $this->hasher,
-        new AuthEventLogger($this->db),
-    );
+    // Update state is stubbed: these tests are about authentication, and the
+    // login path must not depend on an update check having run.
+    $this->updateState = null;
+    $reader = new class ($this) implements UpdateStateReader {
+        public function __construct(private object $t) {}
+        public function read(): ?UpdateState { return $this->t->updateState; }
+    };
+    $this->makeController = function (BuildInfo $build) use ($reader): LoginController {
+        return new LoginController(
+            new AdminRepository($this->db),
+            $this->hasher,
+            new AuthEventLogger($this->db),
+            new UpdateStatus($build, $reader, true, 'izzipizzy/slimtds'),
+        );
+    };
+
+    $this->controller = ($this->makeController)(new BuildInfo(''));
 
     // View is only needed to get translator; we can pass a real one
     $root = dirname(__DIR__, 3);
@@ -113,4 +129,84 @@ test('logout destroys session and redirects to /admin/login', function (): void 
 
     expect($resp->getStatusCode())->toBe(302);
     expect($resp->getHeaderLine('Location'))->toBe('/admin/login');
+});
+
+// ── update toast on login ──────────────────────────────────────────────────
+// The toast is owned by the controller, not the layout: layout globals render
+// on every page, so a state-driven toast would follow the operator around
+// instead of greeting them once.
+
+test('a behind release build queues exactly one update toast', function (): void {
+    $this->updateState = new UpdateState(
+        repo: 'izzipizzy/slimtds',
+        latestVersion: 'v9.9.9',
+        lastAttemptAt: time(),
+        lastSuccessAt: time(),
+    );
+    $controller = ($this->makeController)(new BuildInfo('v0.7.0', 'abc1234', null, 'release'));
+
+    $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/login')
+        ->withParsedBody(['login' => 'alice', 'password' => 'correct-horse']);
+
+    $resp = $controller->postLogin($req, new Response(), $this->view);
+
+    expect($resp->getStatusCode())->toBe(302);
+    expect($_SESSION['_flash']['info'] ?? [])->toHaveCount(1);
+    expect($_SESSION['_flash']['info'][0])->toContain('v9.9.9');
+});
+
+test('an up-to-date build queues no toast', function (): void {
+    $this->updateState = new UpdateState(
+        repo: 'izzipizzy/slimtds',
+        latestVersion: 'v0.7.0',
+        lastAttemptAt: time(),
+        lastSuccessAt: time(),
+    );
+    $controller = ($this->makeController)(new BuildInfo('v0.7.0', 'abc1234', null, 'release'));
+
+    $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/login')
+        ->withParsedBody(['login' => 'alice', 'password' => 'correct-horse']);
+
+    $controller->postLogin($req, new Response(), $this->view);
+
+    expect($_SESSION['_flash']['info'] ?? [])->toBeEmpty();
+});
+
+test('a source build queues no toast even when upstream is far ahead', function (): void {
+    $this->updateState = new UpdateState(
+        repo: 'izzipizzy/slimtds',
+        latestVersion: 'v9.9.9',
+        lastAttemptAt: time(),
+        lastSuccessAt: time(),
+    );
+    $controller = ($this->makeController)(new BuildInfo('v0.4.1-85-gb9d3407', 'b9d3407', null, 'source'));
+
+    $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/login')
+        ->withParsedBody(['login' => 'alice', 'password' => 'correct-horse']);
+
+    $controller->postLogin($req, new Response(), $this->view);
+
+    expect($_SESSION['_flash']['info'] ?? [])->toBeEmpty();
+});
+
+// A login must never fail because an update check could not be read.
+test('a throwing update reader does not break the login', function (): void {
+    $throwing = new class implements UpdateStateReader {
+        public function read(): ?UpdateState { throw new RuntimeException('db is down'); }
+    };
+    $controller = new LoginController(
+        new AdminRepository($this->db),
+        $this->hasher,
+        new AuthEventLogger($this->db),
+        new UpdateStatus(new BuildInfo('v0.7.0', 'abc1234', null, 'release'), $throwing, true, 'izzipizzy/slimtds'),
+    );
+
+    $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/login')
+        ->withParsedBody(['login' => 'alice', 'password' => 'correct-horse']);
+
+    $resp = $controller->postLogin($req, new Response(), $this->view);
+
+    expect($resp->getStatusCode())->toBe(302);
+    expect($resp->getHeaderLine('Location'))->toBe('/admin');
+    expect($_SESSION['_flash']['info'] ?? [])->toBeEmpty();
 });

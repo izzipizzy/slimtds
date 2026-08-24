@@ -88,7 +88,18 @@
                     style="background:transparent;border:1px solid var(--color-border);border-radius:3px;padding:2px 8px;cursor:pointer;color:var(--color-muted);display:inline-flex;align-items:center;font-family:var(--font-sans);font-size:0.7rem;letter-spacing:0.06em">
                 <span x-text="theme === 'dark' ? '☀ light' : '☾ dark'"></span>
             </button>
-            <span class="meta-mono" style="margin-left:auto;color:var(--color-faintest);font-size:0.7rem"><?= e(getenv('APP_VERSION') ?: '') ?></span>
+
+            <!-- Author links. Deliberately in .public-left: .public-right is
+                 display:none under 760px, and hidden links in a mobile-first
+                 index are worse than no links at all. -->
+            <a href="https://t.me/izzypizzy_seo" target="_blank" rel="noopener"
+               style="font-size:0.7rem;letter-spacing:0.04em;text-decoration:none;color:var(--color-faint);font-family:var(--font-sans)">telegram</a>
+            <a href="https://izzyypizzy.com/" target="_blank" rel="noopener"
+               style="font-size:0.7rem;letter-spacing:0.04em;text-decoration:none;color:var(--color-faint);font-family:var(--font-sans)">izzyypizzy.com</a>
+
+            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:0.7rem">
+                <?php require __DIR__ . '/../_partials/version-chip.php'; ?>
+            </span>
         </div>
     </div>
 
