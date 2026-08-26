@@ -74,6 +74,32 @@ import { record } from 'rrweb'
     eventEndpoint = 'p/event'
   }
 
+  // ── Entry referer ───────────────────────────────────────────────────────
+  // Captured once per tab and replayed on every later pageview. After the first
+  // in-lander navigation document.referrer points at the lander itself, which is
+  // exactly how genuine search traffic becomes indistinguishable from direct —
+  // especially behind server-side go.php redirects. Only an EXTERNAL referer
+  // counts as an entry source; a same-host one is stored as empty.
+  var entryRef = ''
+  try {
+    var stored = sessionStorage.getItem('slim_ref')
+    if (stored === null) {
+      var r = document.referrer || ''
+      var external = false
+      if (r) {
+        try {
+          external = new URL(r).hostname.replace(/^www\./, '') !== location.hostname.replace(/^www\./, '')
+        } catch (_) {}
+      }
+      entryRef = external ? r : ''
+      sessionStorage.setItem('slim_ref', entryRef)
+    } else {
+      entryRef = stored
+    }
+  } catch (_) {
+    entryRef = document.referrer || ''
+  }
+
   // ── Send helper ─────────────────────────────────────────────────────────
   function send(payload) {
     const body = JSON.stringify(payload)

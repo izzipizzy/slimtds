@@ -59,7 +59,12 @@ final class InboxFlushCommand extends Command
         return self::SUCCESS;
     }
 
-    private function tick(): int
+    /**
+     * One drain pass. Public so the integration test can drive a single
+     * batch instead of the 55-second loop execute() runs — the sibling
+     * RrwebFlushCommand::drainOnce() is public for the same reason.
+     */
+    public function tick(): int
     {
         $rows = $this->db->fetchAll(
             <<<'SQL'

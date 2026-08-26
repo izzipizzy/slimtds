@@ -9,14 +9,49 @@ use App\Shared\Referer\SearchEngine;
 
 final class ClickRepository
 {
+
+    /**
+     * The pixel event whose entry source belongs to THIS click: same campaign,
+     * same visitor, newest one inside the window — NULL rows included.
+     *
+     * Newest, not earliest, and NULLs kept on purpose. entry_referer repeats
+     * unchanged across every page of one visit, while visitor_uuid outlives the
+     * tab that holds it: a visitor who arrived from Google in the morning and
+     * came back directly in the evening has both an old Google row and a fresh
+     * NULL one. Taking the earliest non-NULL would hand the evening's direct
+     * visit the morning's Google source. Taking the newest row as it stands
+     * lets the direct visit read as direct.
+     *
+     * Same campaign matters for the same reason: one visitor cookie can appear
+     * in several campaigns, and a source belongs to the campaign it arrived in.
+     *
+     * The window is a heuristic, not a visit boundary — without a session id
+     * shared by clicks and pixel events there is no exact link, so an unrelated
+     * event landing inside the +5 minutes can still win. Treat this as the best
+     * available guess, not a guarantee about which visit a click came from.
+     *
+     * Ties on created_at are broken by id so the same row is chosen every time;
+     * the column and the filter both read this query, and disagreeing on a tie
+     * would show one source while matching another.
+     *
+     * `none` therefore means "the chosen row carries a non-search source": a
+     * click whose visitor has no event in the window, or whose chosen row has
+     * no source at all, is in neither `any` nor `none`.
+     */
+    private const ENTRY_SOURCE_SQL = <<<'SQL'
+        SELECT pe.entry_referer
+        FROM stats.pixel_events pe
+        WHERE pe.campaign_id = c.campaign_id
+          AND pe.visitor_uuid = c.visitor_uuid
+          AND pe.created_at >= c.created_at - interval '24 hours'
+          AND pe.created_at <= c.created_at + interval '5 minutes'
+        ORDER BY pe.created_at DESC, pe.id DESC
+        LIMIT 1
+        SQL;
     public function __construct(private readonly Connection $db) {}
 
     /**
-     * @param array{campaign_id?:?string, country?:?string, device?:?string, is_bot?:?bool, is_uniq?:?bool, since?:?string, is_trash?:?string, search?:?string, ip?:?string, click_id?:?string, visitor?:?string, fp_js?:?string} $filters
-     * @return list<array<string,mixed>>
-     */
-    /**
-     * @param array{campaign_id?:?string, country?:?string, device?:?string, is_bot?:?bool, is_uniq?:?bool, since?:?string, is_trash?:?string, search?:?string, ip?:?string, click_id?:?string, visitor?:?string, fp_js?:?string} $filters
+     * @param array{campaign_id?:?string, country?:?string, device?:?string, is_bot?:?bool, is_uniq?:?bool, since?:?string, is_trash?:?string, search?:?string, entry_ref?:?string, ip?:?string, click_id?:?string, visitor?:?string, fp_js?:?string} $filters
      * @param string $orderBy SQL fragment, must come from a whitelist (e.g. "c.created_at DESC")
      * @return list<array<string,mixed>>
      */
@@ -27,6 +62,7 @@ final class ClickRepository
         $params['limit'] = $perPage;
         $params['offset'] = $offset;
 
+        $entrySource = self::ENTRY_SOURCE_SQL;
         return $this->db->fetchAll(
             "SELECT c.id, c.campaign_id, c.flow_id, c.offer_id, c.visitor_uuid,
                     host(c.ip) AS ip, c.country, c.region, c.city, c.asn, c.isp,
@@ -38,26 +74,12 @@ final class ClickRepository
                     cmp.slug AS campaign_slug, cmp.name AS campaign_name,
                     o.name AS offer_name,
                     fl.name AS flow_name,
-                    er.entry_referer,
+                    ({$entrySource}) AS entry_referer,
                     (EXISTS (SELECT 1 FROM core.conversions cv WHERE cv.click_id = c.id))::int AS has_conversion
              FROM stats.clicks c
              LEFT JOIN core.campaigns cmp ON cmp.id = c.campaign_id
              LEFT JOIN core.offers o      ON o.id   = c.offer_id
              LEFT JOIN core.flows fl      ON fl.id  = c.flow_id
-             -- Entry source the pixel recorded for this visitor, shown ALONGSIDE
-             -- c.referer, never replacing it. Earliest matching event wins: that
-             -- is the one carrying the external source, unlike the most recent
-             -- one, which is typically an in-lander navigation.
-             LEFT JOIN LATERAL (
-                 SELECT pe.entry_referer
-                 FROM stats.pixel_events pe
-                 WHERE pe.visitor_uuid = c.visitor_uuid
-                   AND pe.entry_referer IS NOT NULL
-                   AND pe.created_at >= c.created_at - interval '24 hours'
-                   AND pe.created_at <= c.created_at + interval '5 minutes'
-                 ORDER BY pe.created_at
-                 LIMIT 1
-             ) er ON true
              {$where}
              ORDER BY {$orderBy}
              LIMIT :limit OFFSET :offset",
@@ -438,16 +460,14 @@ final class ClickRepository
         // go.php redirect is the lander itself. Written as EXISTS so it works
         // identically in page() and count(), and costs nothing when unset.
         if (!empty($filters['entry_ref'])) {
-            [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['entry_ref'], 'pe.entry_referer', 'eref');
+            [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['entry_ref'], 'sel.entry_referer', 'eref');
             if ($frag !== '') {
-                $cond[] = "EXISTS (
-                    SELECT 1 FROM stats.pixel_events pe
-                    WHERE pe.visitor_uuid = c.visitor_uuid
-                      AND pe.entry_referer IS NOT NULL
-                      AND pe.created_at >= c.created_at - interval '24 hours'
-                      AND pe.created_at <= c.created_at + interval '5 minutes'
-                      AND {$frag}
-                )";
+                // Filters the ONE row the column shows, not "any event in the
+                // window": otherwise a click could display one source and match
+                // a filter for another. The row is picked once in the derived
+                // table, so the engine patterns test a single value.
+                $sel = self::ENTRY_SOURCE_SQL;
+                $cond[] = "EXISTS (SELECT 1 FROM ({$sel}) sel WHERE {$frag})";
                 $params = array_merge($params, $bind);
             }
         }

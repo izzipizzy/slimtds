@@ -93,6 +93,55 @@ test('valid payload inserts row and returns 204', function (): void {
     expect((int)$p['sw'])->toBe(1920);
 });
 
+test('entry referer reaches the inbox payload as eref', function (): void {
+    $req  = pixelRequest([
+        'c'    => 'px01',
+        'url'  => 'https://lander.example/page',
+        'ref'  => 'https://lander.example/',
+        'eref' => 'https://www.google.com/search?q=x',
+        'fp'   => 'fperef',
+    ]);
+    $resp = ($this->ctrl)($req, new Response());
+
+    expect($resp->getStatusCode())->toBe(204);
+
+    $row = $this->db->fetchOne(
+        'SELECT payload FROM stats.pixel_events_inbox ORDER BY created_at DESC LIMIT 1',
+    );
+    $p = json_decode((string)$row['payload'], true);
+    // ref is the current page's referer, eref the visit's entry — kept apart.
+    expect($p['ref'])->toBe('https://lander.example/');
+    expect($p['eref'])->toBe('https://www.google.com/search?q=x');
+});
+
+test('an empty entry referer is stored as null, not an empty string', function (): void {
+    // A same-host entry is normalised to '' by the client; it must not travel
+    // further as a value, or the column would say "there was a source" when
+    // there was none.
+    $req = pixelRequest(['c' => 'px01', 'url' => 'https://lander.example/', 'eref' => '', 'fp' => 'fpempty']);
+    ($this->ctrl)($req, new Response());
+
+    $row = $this->db->fetchOne(
+        'SELECT payload FROM stats.pixel_events_inbox ORDER BY created_at DESC LIMIT 1',
+    );
+    $p = json_decode((string)$row['payload'], true);
+    expect($p['eref'])->toBeNull();
+});
+
+test('a payload from an older pixel without eref still works', function (): void {
+    $req  = pixelRequest(['c' => 'px01', 'url' => 'https://lander.example/', 'fp' => 'fpold']);
+    $resp = ($this->ctrl)($req, new Response());
+
+    expect($resp->getStatusCode())->toBe(204);
+
+    $row = $this->db->fetchOne(
+        'SELECT payload FROM stats.pixel_events_inbox ORDER BY created_at DESC LIMIT 1',
+    );
+    $p = json_decode((string)$row['payload'], true);
+    expect($p)->toHaveKey('eref');
+    expect($p['eref'])->toBeNull();
+});
+
 test('new visitor gets Set-Cookie vu header', function (): void {
     $req  = pixelRequest(['c' => 'px01', 'url' => 'https://example.com', 'fp' => 'fpnew']);
     $resp = ($this->ctrl)($req, new Response());

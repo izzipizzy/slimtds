@@ -38,9 +38,9 @@ beforeEach(function (): void {
         ['id' => ENTRY_CAMPAIGN],
     );
 
-    // Visitor A entered from Google, then navigated inside the lander. The later
-    // in-lander pageview carries the lander as `referer` — picking the most
-    // recent event would therefore hide the real source.
+    // Visitor A entered from Google, then navigated inside the lander. Both
+    // events repeat the SAME entry_referer — that is what the client does, and
+    // it is why the click's own `referer` (the lander) is useless here.
     $this->db->execute(
         "INSERT INTO stats.pixel_events (campaign_id, visitor_uuid, referer, entry_referer, created_at)
          VALUES
@@ -65,7 +65,7 @@ beforeEach(function (): void {
     );
 });
 
-test('entry source comes from the earliest external pixel event, not the latest one', function (): void {
+test('entry source is the one the visit repeats across its pageviews', function (): void {
     $rows = $this->repo->page(1, 50, entryFilters());
     $byVisitor = [];
     foreach ($rows as $r) {
@@ -109,4 +109,97 @@ test('a click whose visitor has no pixel event keeps a null entry source', funct
 
     expect($row)->toHaveCount(1)
         ->and($row[0]['entry_referer'])->toBeNull();
+});
+
+test('a later direct visit is not given the earlier visit\'s source', function (): void {
+    // The visitor cookie outlives the tab that holds the entry referer, so one
+    // visitor legitimately has an old sourced visit and a fresh unsourced one.
+    // Reading the earliest non-NULL row would hand the evening's direct arrival
+    // the morning's Google — the exact misattribution this ordering prevents.
+    $vRepeat = '00000000-0000-7000-8000-0000000000e4';
+    $this->db->execute(
+        "INSERT INTO stats.pixel_events (campaign_id, visitor_uuid, referer, entry_referer, created_at)
+         VALUES
+            (:c, :v, 'https://www.google.com/search?q=x', 'https://www.google.com/search?q=x', now() - interval '8 hours'),
+            (:c, :v, 'https://lander.test/', NULL,                                             now() - interval '2 minutes')",
+        ['c' => ENTRY_CAMPAIGN, 'v' => $vRepeat],
+    );
+    $this->db->execute(
+        "INSERT INTO stats.clicks (campaign_id, visitor_uuid, ip, referer, is_bot, created_at)
+         VALUES (:c, :v, '1.1.1.3', 'https://lander.test/step-2', false, now())",
+        ['c' => ENTRY_CAMPAIGN, 'v' => $vRepeat],
+    );
+
+    $rows = $this->repo->page(1, 50, entryFilters());
+    $row  = current(array_filter($rows, fn ($r) => $r['visitor_uuid'] === $vRepeat));
+
+    expect($row)->not->toBeFalse();
+    expect($row['entry_referer'])->toBeNull();
+
+    // And it must not answer a search-entry filter either.
+    $hits = $this->repo->page(1, 50, entryFilters(['entry_ref' => 'any']));
+    expect(array_column($hits, 'visitor_uuid'))->not->toContain($vRepeat);
+});
+
+test('a source from another campaign does not leak onto this click', function (): void {
+    // One visitor cookie can appear in several campaigns; a source belongs to
+    // the campaign it arrived in.
+    $other  = '00000000-0000-7000-8000-0000000000e5';
+    $vCross = '00000000-0000-7000-8000-0000000000e6';
+    $this->db->execute(
+        "INSERT INTO core.campaigns (id, slug, name, is_active)
+         VALUES (:id, 'entrysrc-other', 'other campaign', true) ON CONFLICT (id) DO NOTHING",
+        ['id' => $other],
+    );
+    // Sourced event in the OTHER campaign, none in this one.
+    $this->db->execute(
+        "INSERT INTO stats.pixel_events (campaign_id, visitor_uuid, referer, entry_referer, created_at)
+         VALUES (:o, :v, 'https://www.google.com/search?q=y', 'https://www.google.com/search?q=y', now() - interval '5 minutes')",
+        ['o' => $other, 'v' => $vCross],
+    );
+    $this->db->execute(
+        "INSERT INTO stats.clicks (campaign_id, visitor_uuid, ip, referer, is_bot, created_at)
+         VALUES (:c, :v, '1.1.1.4', 'https://lander.test/step-2', false, now())",
+        ['c' => ENTRY_CAMPAIGN, 'v' => $vCross],
+    );
+
+    $rows = $this->repo->page(1, 50, entryFilters());
+    $row  = current(array_filter($rows, fn ($r) => $r['visitor_uuid'] === $vCross));
+
+    expect($row)->not->toBeFalse();
+    expect($row['entry_referer'])->toBeNull();
+
+    $hits = $this->repo->page(1, 50, entryFilters(['entry_ref' => 'any']));
+    expect(array_column($hits, 'visitor_uuid'))->not->toContain($vCross);
+});
+
+test('with two sourced visits the column and the filter agree on the newest', function (): void {
+    // The dangerous shape: two real sources for one visitor. If the column and
+    // the filter picked rows independently, the row could read Bing while a
+    // Google filter still matched it.
+    $vTwo = '00000000-0000-7000-8000-0000000000e7';
+    $this->db->execute(
+        "INSERT INTO stats.pixel_events (campaign_id, visitor_uuid, referer, entry_referer, created_at)
+         VALUES
+            (:c, :v, 'https://www.google.com/search?q=a', 'https://www.google.com/search?q=a', now() - interval '6 hours'),
+            (:c, :v, 'https://www.bing.com/search?q=b',   'https://www.bing.com/search?q=b',   now() - interval '3 minutes')",
+        ['c' => ENTRY_CAMPAIGN, 'v' => $vTwo],
+    );
+    $this->db->execute(
+        "INSERT INTO stats.clicks (campaign_id, visitor_uuid, ip, referer, is_bot, created_at)
+         VALUES (:c, :v, '1.1.1.5', 'https://lander.test/step-2', false, now())",
+        ['c' => ENTRY_CAMPAIGN, 'v' => $vTwo],
+    );
+
+    $rows = $this->repo->page(1, 50, entryFilters());
+    $row  = current(array_filter($rows, fn ($r) => $r['visitor_uuid'] === $vTwo));
+    expect($row['entry_referer'])->toContain('bing.com');
+
+    $bing = $this->repo->page(1, 50, entryFilters(['entry_ref' => 'bing']));
+    expect(array_column($bing, 'visitor_uuid'))->toContain($vTwo);
+
+    // The older Google visit must NOT match — that is the display/filter
+    // agreement the shared query exists to guarantee.
+    $google = $this->repo->page(1, 50, entryFilters(['entry_ref' => 'google']));
+    expect(array_column($google, 'visitor_uuid'))->not->toContain($vTwo);
 });

@@ -47,13 +47,20 @@ docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml up -d
 **Required `.env` variables:**
 
 ```env
-DEPLOY_MODE=cf_full      # cf_full = HTTPS origin with CF Origin Cert
-                          # cf_flex = HTTP-only origin (Cloudflare handles TLS)
+DEPLOY_MODE=cf_flex      # cf_flex = HTTP-only origin (Cloudflare handles TLS)
+                          # cf_full = not implemented; the container refuses to start
 APP_SECRET=<64-hex-chars>
 ADMIN_PASSWORD=<initial-password>
 ```
 
-`cf_full` mode: Caddy listens on `:443` with a Cloudflare Origin Certificate (upload to Caddy or mount as volume). This is the recommended configuration for full end-to-end encryption.
+> **`cf_full` is not implemented and the container refuses to start in it.** The mode
+> was documented as an encrypted origin, but `Caddyfile.cf` carries `auto_https off`
+> and no `tls` directive, no Origin Certificate is referenced, and the compose file
+> mounts none. Setting `CF_LISTEN_PORT=443` only moved *plaintext* HTTP to port 443,
+> where Cloudflare Full answers with error 525 — while the operator believed traffic
+> to the origin was encrypted. Wiring up the certificate is tracked separately; until
+> then `entrypoint.sh` exits with `78` and says so, rather than serving an origin that
+> silently contradicts this guide.
 
 `cf_flex` mode: Caddy listens on `:80`, Cloudflare terminates TLS. Simpler but traffic between CF edge and your origin is unencrypted.
 
@@ -158,6 +165,41 @@ The cron container will automatically start sending digests and alerts. To test 
 docker compose exec app php bin/console telegram:digest
 docker compose exec app php bin/console telegram:alerts
 ```
+
+---
+
+## Build identity
+
+The footer reports the running build from four variables baked into the image
+at build time (`docker/Dockerfile:74-81`). They arrive as **build args**, which
+means they must be exported in the shell that runs the build — there is
+deliberately no `environment:` mapping for them, because a compose environment
+entry overrides the image ENV even when it interpolates to an empty string, and
+that would erase a correctly stamped release image.
+
+`make` exports them for every target, so a dev build is stamped automatically.
+A production update must not use `make` (it applies the dev overlay), so export
+them by hand before `up -d --build`:
+
+```bash
+export APP_VERSION=$(git describe --tags --always --dirty --match 'v*')
+export APP_COMMIT=$(git rev-parse --short HEAD)
+export APP_BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+export APP_BUILD_KIND=source
+```
+
+Skip this and the image bakes empty strings; `BuildInfo` then reports `unknown`
+and the footer shows no version at all, which is the honest outcome — it never
+invents one.
+
+`--match 'v*'` matters: `git describe --tags` takes the nearest reachable tag of
+any kind, so a `rollback/...` tag on the checkout would become the reported
+version.
+
+`APP_BUILD_KIND=source` is correct for a server that builds its own image. Only
+CI, building from a release tag, may set `release` — and only a `release` build
+is ever compared against upstream, because the nearest *reachable* tag is not
+the newest tag in the repository.
 
 ---
 

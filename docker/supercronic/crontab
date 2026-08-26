@@ -49,11 +49,10 @@
 # 55s inner-loop pattern as inbox:flush.
 * * * * * /usr/local/bin/php /app/bin/console rrweb:flush
 
+# Check upstream for a newer release, twice daily. Odd minute so it does not
+# pile onto the jobs scheduled on the hour and half-hour.
+17 4,16 * * * /usr/local/bin/php /app/bin/console version:check
 # Demo-only: full reset to baseline every 4 hours. On non-demo hosts demo:reset
 # exits non-zero (DEMO_MODE!=1) and `|| true` swallows it, so supercronic logs no
 # failure; on the demo VPS (DEMO_MODE=1) it performs the reset.
 0 */4 * * * /usr/local/bin/php /app/bin/console demo:reset || true
-
-# Check upstream for a newer release, twice daily. Odd minute so it does not
-# pile onto the jobs scheduled on the hour and half-hour.
-17 4,16 * * * /usr/local/bin/php /app/bin/console version:check

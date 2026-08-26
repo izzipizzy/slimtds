@@ -25,7 +25,14 @@ COPY . ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
 # ===== Stage: runtime =====
-FROM dunglas/frankenphp:1.12.4-php8.4-alpine AS runtime
+# Pinned by digest: the floating tag moves under us, so a rebuild would swap the
+# FrankenPHP/Caddy/PHP runtime as a side effect of an unrelated deploy. This is the
+# FrankenPHP version production is already on — v1.12.6 / Caddy v2.11.4 — so the
+# deploy that finally applies the mode-selected Caddyfile changes one thing, not two.
+# PHP is 8.4.24 against production's 8.4.23: this tag was rebuilt and the 8.4.23
+# image is no longer published, so one security patch is the smallest step available.
+# Moving to FrankenPHP 1.12.7 is a separate change, with its own rollback.
+FROM dunglas/frankenphp:1.12.6-php8.4-alpine@sha256:fe1f8c7dff4a4945f95a6c72eb0f7b416bce7bd9c7557c806deab99c324c46da AS runtime
 
 # Системные зависимости для расширений
 RUN apk add --no-cache \
@@ -81,13 +88,13 @@ COPY --from=assets-builder /app/public/p.js   /app/public/p.js
 
 COPY config/frankenphp/ /app/config/frankenphp/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-ENV FRANKENPHP_CONFIG="/app/config/frankenphp/Caddyfile.dev"
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh
 
 EXPOSE 80 443
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 # No --config here: entrypoint.sh injects the Caddyfile for the active DEPLOY_MODE.
-# (A hardcoded --config would be appended after entrypoint's and win, forcing dev config.)
+# A hardcoded --config is appended *after* entrypoint's own and wins, which silently
+# forced the dev config in every mode.
 CMD ["frankenphp", "run"]

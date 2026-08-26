@@ -37,13 +37,13 @@ say what the default costs.
 
 | Input | Required | Default / note |
 |---|---|---|
-| Deploy mode | **yes** | `direct` \| `cf_flex` \| `cf_full` \| `dev` — see the table below |
-| Domain | yes for `direct` and `cf_*` | must already have an A record pointing at this server |
+| Deploy mode | **yes** | `direct` \| `cf_flex` \| `dev` — see the table below |
+| Domain | yes for `direct` and `cf_flex` | must already have an A record pointing at this server |
 | Admin password | no | you generate a strong one and report it in §9 |
 | `APP_TZ` | no | `Europe/Moscow`. Affects how timestamps are displayed; storage stays UTC |
 | MaxMind account ID + license key | no | **without it geo targeting silently does nothing** — country/city/ASN filters never match |
 | Telegram bot token + chat ID | no | without it the daily digest and alerts are off |
-| Cloudflare Origin Certificate (cert + key paths) | yes for `cf_full` | `cf_full` serves HTTPS on the origin and needs a certificate |
+| Cloudflare Origin Certificate (cert + key paths) | no | `cf_full` was the mode that would have needed one; it is not implemented |
 
 Do not ask about the admin UI language — there is no environment variable for it. The
 interface defaults to Russian and each admin switches it from the sidebar; the choice is
@@ -55,7 +55,7 @@ stored per account, with an `ui_lang` cookie and `Accept-Language` as fallbacks.
 |---|---|
 | `direct` | The server is the public origin. Caddy gets Let's Encrypt certificates itself. Ports 80 and 443 must be reachable from the internet. **This is the default choice for a plain VPS.** |
 | `cf_flex` | The domain is proxied through Cloudflare and you accept plain HTTP between Cloudflare and this server. Caddy listens on `:80`. |
-| `cf_full` | The domain is proxied through Cloudflare *and* the origin serves HTTPS with a Cloudflare Origin Certificate. Caddy listens on `:443`. |
+| ~~`cf_full`~~ | **Not implemented.** It was documented as an HTTPS origin, but no certificate was ever wired up: `:443` would serve plaintext. `entrypoint.sh` refuses to start in this mode. Use `cf_flex`. |
 | `dev` | Local workstation only. **Publishes no ports** — see the warning in §6. Never use it on a server. |
 
 ---
@@ -79,7 +79,7 @@ df -BG --output=avail / | tail -1
 # Ports 80 and 443 must be free
 ss -lntp | grep -E ':(80|443)\s' || echo "PORTS FREE"
 
-# DNS — direct and cf_* modes only. Must equal this server's public IP.
+# DNS — direct and cf_flex modes only. Must equal this server's public IP.
 dig +short "$DOMAIN" ; curl -s https://api.ipify.org ; echo
 
 # Outbound network
@@ -94,7 +94,7 @@ curl -sI https://github.com | head -1
 | Disk | ≥ 20 GB free | Stop. The image build plus Postgres data will not fit. |
 | Ports 80/443 | prints `PORTS FREE` | Stop. Something already serves HTTP here — report what `ss` showed. This is the most common cause of a half-working install. |
 | DNS (`direct`) | `dig` output equals the public IP | Stop. Let's Encrypt will fail. Ask the user to fix the A record first. |
-| DNS (`cf_*`) | `dig` returns Cloudflare IPs | Continue — that is expected when the record is proxied. |
+| DNS (`cf_flex`) | `dig` returns Cloudflare IPs | Continue — that is expected when the record is proxied. |
 | Outbound | `HTTP/2 200` | Stop. No internet, nothing further will work. |
 
 ---
@@ -195,11 +195,11 @@ overwrite an existing `.env`**; if one exists, stop and ask the user before touc
 
 Now edit `.env`. Keys that differ by mode:
 
-| Key | `dev` | `cf_flex` | `cf_full` | `direct` |
+| Key | `dev` | `cf_flex` | ~~`cf_full`~~ | `direct` |
 |---|---|---|---|---|
 | `APP_ENV` | `dev` | `prod` | `prod` | `prod` |
 | `APP_DEBUG` | `true` | `false` | `false` | `false` |
-| `DEPLOY_MODE` | `dev` | `cf_flex` | `cf_full` | `direct` |
+| `DEPLOY_MODE` | `dev` | `cf_flex` | — | `direct` |
 | `DOMAIN` | `slimtds.local` | your domain | your domain | your domain |
 | `APP_URL` | `https://slimtds.local` | `https://<domain>` | `https://<domain>` | `https://<domain>` |
 | `DB_PASSWORD` | default is fine | **change it** | **change it** | **change it** |
@@ -213,7 +213,7 @@ Everything else keeps its `.env.example` value unless §1 supplied one: `APP_TZ`
 > and the only fixes are resetting the password inside Postgres or destroying the volume.
 
 **Real client IP needs no configuration.** Leave `TRUSTED_PROXIES` alone — nothing reads it.
-In `cf_*` modes `config/frankenphp/Caddyfile.cf` already trusts Cloudflare's ranges and reads
+In `cf_flex` `config/frankenphp/Caddyfile.cf` already trusts Cloudflare's ranges and reads
 `CF-Connecting-IP`; `src/Shared/RealIp.php` then walks
 `X-Slim-IP → X-Real-IP → CF-Connecting-IP → True-Client-IP → X-Forwarded-For → REMOTE_ADDR`.
 Never hand-edit a `Caddyfile.*` — `docker/entrypoint.sh` picks the right one from
@@ -225,7 +225,7 @@ Never hand-edit a `Caddyfile.*` — `docker/entrypoint.sh` picks the right one f
 
 ```bash
 make prod-up-direct     # DEPLOY_MODE=direct
-make prod-up-cf         # DEPLOY_MODE=cf_flex or cf_full
+make prod-up-cf         # DEPLOY_MODE=cf_flex
 make up                 # dev only, local workstation
 ```
 
@@ -249,8 +249,11 @@ Two consequences worth knowing:
   domain labels for a local development environment instead of a port mapping. On a plain
   Linux server `dev` is simply unreachable — use `direct`.
 
-For `cf_full`, mount the Cloudflare Origin Certificate the user supplied in §1 so Caddy can
-serve `:443`. Without it the container starts but TLS on the origin fails.
+`cf_full` is not implemented. It was documented as an HTTPS origin backed by a Cloudflare
+Origin Certificate, but `Caddyfile.cf` sets `auto_https off` and declares no `tls` directive,
+and no compose file mounts a certificate — so `:443` served plaintext while the guide claimed
+encryption. `entrypoint.sh` now refuses to start in that mode. Use `cf_flex`, where Cloudflare
+terminates TLS and the origin is HTTP on `:80` by design.
 
 ---
 
@@ -261,7 +264,7 @@ Define the compose pair once so the commands below are literal:
 ```bash
 # direct
 DC="docker compose -f docker-compose.yml -f docker-compose.prod.direct.yml"
-# cf_flex / cf_full
+# cf_flex
 DC="docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml"
 # dev
 DC="docker compose"
@@ -358,7 +361,7 @@ slimTDS is installed.
   URL       https://<domain>/admin/login
   Login     admin
   Password  <the generated password — printed once, tell them to change it>
-  Mode      <direct|cf_flex|cf_full>
+  Mode      <direct|cf_flex>
 
 Enabled:  <geo targeting | Telegram notifications | — none of the optional integrations>
 Backups:  ./var/backups on the host (daily cron, last 7 kept)
@@ -389,7 +392,7 @@ Report failures in the same table rather than omitting them.
 | `app` container restart-loops | Worker-mode bootstrap error (bad `.env` value, missing migration) | Read `make logs`; set `FRANKENPHP_WORKER_MODE=0` in `.env` to fall back to classic mode and see the real error, then fix it and switch back |
 | Let's Encrypt never issues a certificate | DNS does not point here, or port 80 is occupied | Re-run the §2 DNS and port checks. Caddy needs :80 reachable for the ACME challenge |
 | Database authentication fails | `DB_PASSWORD` was changed after the volume was initialized | Either set it back, or `$DC down -v` (**destroys all data**) and start over |
-| Visitor IP is the proxy's IP | `DEPLOY_MODE` is not `cf_*`, so `entrypoint.sh` chose a Caddyfile without the Cloudflare trusted-proxy block. **Not** a `TRUSTED_PROXIES` problem — that key does nothing | Set `DEPLOY_MODE=cf_flex` or `cf_full`, restart |
+| Visitor IP is the proxy's IP | `DEPLOY_MODE` is not `cf_flex`, so `entrypoint.sh` chose a Caddyfile without the Cloudflare trusted-proxy block. **Not** a `TRUSTED_PROXIES` problem — that key does nothing | Set `DEPLOY_MODE=cf_flex`, restart |
 | Geo filters never match | `.mmdb` files are missing; `GeoLookup` no-ops by design when they are | Run the `docker run … geoipupdate` command in §7, then restart `app` |
 | `geoipupdate` container restart-loops | It starts with the prod stack and has no MaxMind credentials | Harmless. Either add the credentials to `.env` or `$DC stop geoipupdate` |
 | GeoIP downloaded but filters still fail in `direct` mode | The compose `geoipupdate` service writes to a named volume; the app reads the `./geoip-data` bind mount | Use the `docker run` form in §7 — it writes to the right place |

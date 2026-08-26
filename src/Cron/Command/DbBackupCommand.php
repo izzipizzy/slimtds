@@ -10,11 +10,11 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\Process;
 
-#[AsCommand(name: 'db:backup', description: 'Create pg_dump backup with 14-day rotation')]
+#[AsCommand(name: 'db:backup', description: 'Create pg_dump backup with 7-day rotation (rrweb replay data excluded)')]
 final class DbBackupCommand extends Command
 {
     private const BACKUPS_DIR   = '/app/var/backups';
-    private const RETENTION_DAYS = 14;
+    private const RETENTION_DAYS = 7;
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
@@ -37,8 +37,18 @@ final class DbBackupCommand extends Command
 
         $output->writeln("db:backup starting → {$dumpFile}");
 
+        // rrweb replays (session recordings) are large, already-gzipped, and
+        // disposable analytics — excluding their *data* keeps dumps ~1-2 GB instead
+        // of ~11 GB. Schemas are still dumped, so a restore recreates the tables
+        // empty. rrweb_chunks is partitioned → the trailing * matches every
+        // monthly child partition too.
         $process = new Process(
-            ['/usr/bin/pg_dump', '--format=custom', "--file={$dumpFile}"],
+            [
+                '/usr/bin/pg_dump', '--format=custom',
+                '--exclude-table-data=stats.rrweb_chunks*',
+                '--exclude-table-data=stats.rrweb_sessions',
+                "--file={$dumpFile}",
+            ],
             null,
             $env,
         );

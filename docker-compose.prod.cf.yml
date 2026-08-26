@@ -1,7 +1,10 @@
 services:
   app:
     environment:
-      DEPLOY_MODE: ${DEPLOY_MODE:-cf_full}
+      # No default: an absent DEPLOY_MODE used to fall back to cf_full, which serves
+      # a plaintext origin while claiming TLS. Make the operator choose. cf_full is
+      # not implemented and entrypoint.sh refuses it — see docs/DEPLOYMENT.md.
+      DEPLOY_MODE: ${DEPLOY_MODE:?set DEPLOY_MODE=cf_flex in .env (cf_full is not implemented)}
       APP_ENV: prod
     ports:
       - "80:80"

@@ -198,10 +198,12 @@ slimTDS/
 | Mode | Compose command | TLS | Real-IP source |
 |---|---|---|---|
 | **dev** | `docker compose up` | OrbStack auto-HTTPS via `dev.orbstack.domains=slimtds.local` label | local |
-| **prod-cf** | `docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml up -d` | Cloudflare (Flex or Full with Origin Cert) | `CF-Connecting-IP` header |
+| **prod-cf** | `docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml up -d` | Cloudflare terminates TLS; the origin is HTTP on `:80` | `CF-Connecting-IP` header |
 | **prod-direct** | `docker compose -f docker-compose.yml -f docker-compose.prod.direct.yml up -d` | Caddy auto-TLS via Let's Encrypt | trusted proxies only |
 
-CF mode: `DEPLOY_MODE=cf_flex` (HTTP :80 origin) vs `DEPLOY_MODE=cf_full` (HTTPS :443 with CF Origin cert).
+CF mode: `DEPLOY_MODE=cf_flex` (HTTP :80 origin, Cloudflare terminates TLS). `cf_full` is
+not implemented — it never wired up an Origin Certificate and the container refuses to
+start in it; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 Direct mode: set `DEPLOY_MODE=direct` and `DOMAIN=tds.example.com` in `.env`.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full production setup instructions.
@@ -213,10 +215,6 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full production setup instructi
 Production runs from a **git checkout and builds its own image** — `docker-compose.yml`
 carries `build:` and is the base layer for both prod overlays. So an update is: pull, rebuild,
 migrate. There is no `docker pull` step.
-
-> **Pull from `origin` (Gitea), not from `github`.** The two remotes do **not** share history —
-> `git merge-base origin/main github/main` returns nothing. Pulling from `github` into this
-> checkout will fail or produce a mess. `origin` is the line this server was installed from.
 
 ### For a human
 
@@ -233,6 +231,14 @@ git log --oneline HEAD..origin/main     # read what you are about to deploy
 git pull --ff-only origin main
 
 # 3. Rebuild and restart. --build is required: plain `up -d` reuses the old image.
+#    Export the build identity first. These reach the image as build args, and
+#    the Makefile is what normally exports them — but `make` must not be used
+#    here (it applies the dev overlay), so an un-exported variable bakes an
+#    empty version and the footer reports `unknown`.
+export APP_VERSION=$(git describe --tags --always --dirty --match 'v*')
+export APP_COMMIT=$(git rev-parse --short HEAD)
+export APP_BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+export APP_BUILD_KIND=source
 docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml up -d --build
 
 # 4. Migrate
@@ -271,7 +277,8 @@ print secrets, never edit application source, report honestly. Additionally:
    report before proceeding.
 3. **Never `git pull` without `--ff-only`.** A merge commit created by an agent on a
    production checkout is how the histories in this project diverged in the first place.
-4. **Never pull from the `github` remote.** Unrelated history — see the warning above.
+4. **Never `git pull --ff-only origin main` from anywhere but this server's own remote.** Pull
+   what the checkout was installed from; nothing else shares its history.
 5. **Always pass both `-f` files.** Every command in this section is written that way for a
    reason; a bare `docker compose` silently applies the dev overlay.
 6. **Verify before reporting success.** All containers `running`, `/admin/login` returns 200,

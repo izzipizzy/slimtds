@@ -2,7 +2,10 @@
 # `docker compose build` (build args) and the dev overlay (runtime env) see the
 # same values. A checkout with no tags yields a bare hash, which the app
 # reports as a source build — never as a version it does not have.
-GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null)
+# --match 'v*' on purpose: `git describe --tags` takes the nearest reachable
+# tag of ANY kind, so a `rollback/...` tag left on a production checkout
+# becomes the reported version. Only release tags may name a build.
+GIT_VERSION := $(shell git describe --tags --always --dirty --match 'v*' 2>/dev/null)
 GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null)
 GIT_DATE    := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 export APP_VERSION    := $(GIT_VERSION)
@@ -11,7 +14,7 @@ export APP_BUILD_DATE := $(GIT_DATE)
 export APP_BUILD_KIND := source
 
 .DEFAULT_GOAL := help
-.PHONY: help env up down restart logs shell psql migrate seed seed-fresh seed-stats test test-up test-down test-unit test-integration test-arch test-browser stan benchmark build build-assets clean pixel-test-up pixel-test-down prod-up-cf prod-up-direct prod-down demo-up demo-down deploy
+.PHONY: help env up down restart logs shell psql migrate seed seed-fresh test test-up test-down test-unit test-integration test-arch test-browser test-publish release-publish stan benchmark build build-assets clean pixel-test-up pixel-test-down prod-up-cf prod-up-direct prod-down deploy seed-stats demo-up demo-down
 
 ## help — Show this help
 help:
@@ -112,6 +115,15 @@ test-arch:
 test-browser:
 	docker compose exec -e BROWSER_TESTS=1 app ./vendor/bin/pest --testsuite=Browser
 
+## release-publish — Publish to GitHub (usage: make release-publish VERSION=0.7.1 [DRY=1])
+release-publish:
+	@[ -n "$(VERSION)" ] || { echo "usage: make release-publish VERSION=x.y.z [DRY=1]"; exit 1; }
+	bash scripts/publish.sh $(if $(DRY),--dry-run,) $(VERSION)
+
+## test-publish — Run the scripts/publish.sh tests (on the host, not in Docker)
+test-publish:
+	bash tests/publish/run.sh
+
 ## stan — PHPStan level 6
 stan:
 	docker compose exec app vendor/bin/phpstan analyse --memory-limit=512M
@@ -139,9 +151,9 @@ pixel-test-up:
 pixel-test-down:
 	docker compose -f docker-compose.pixel-test.yml down
 
-## prod-up-cf — Start prod stack behind Cloudflare (set DEPLOY_MODE=cf_flex|cf_full + DOMAIN in .env)
+## prod-up-cf — Start prod stack behind Cloudflare (set DEPLOY_MODE=cf_flex + DOMAIN in .env)
 prod-up-cf:
-	@grep -qE '^DEPLOY_MODE=cf' .env 2>/dev/null || { echo "Set DEPLOY_MODE=cf_flex or cf_full in .env first"; exit 1; }
+	@grep -qE '^DEPLOY_MODE=cf_flex' .env 2>/dev/null || { echo "Set DEPLOY_MODE=cf_flex in .env first (cf_full is not implemented — see docs/DEPLOYMENT.md)"; exit 1; }
 	docker compose -f docker-compose.yml -f docker-compose.prod.cf.yml up -d
 	@echo ""
 	@echo "Prod stack (Cloudflare) up. See docs/DEPLOYMENT.md."

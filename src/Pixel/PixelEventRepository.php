@@ -197,8 +197,11 @@ final class PixelEventRepository
             $params['event_name'] = (string)$filters['event_name'];
         }
         if (!empty($filters['domain'])) {
-            $cond[]           = "regexp_replace(pe.page_url, '^https?://([^/]+).*', '\\1') ILIKE :domain";
-            $params['domain'] = '%' . (string)$filters['domain'] . '%';
+            // Exact host match (was ILIKE '%domain%'): hits idx_pixel_events_host
+            // (btree on the same regexp_replace expr) instead of a lossy gin_trgm
+            // heap-recheck over every candidate row.
+            $cond[]           = "regexp_replace(pe.page_url, '^https?://([^/]+).*', '\\1') = :domain";
+            $params['domain'] = (string)$filters['domain'];
         }
         if (!empty($filters['search'])) {
             [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['search'], 'pe.referer', 'se');
@@ -267,8 +270,11 @@ final class PixelEventRepository
             $params['event_name'] = (string)$filters['event_name'];
         }
         if (!empty($filters['domain'])) {
-            $cond[]           = "regexp_replace(pe.page_url, '^https?://([^/]+).*', '\\1') ILIKE :domain";
-            $params['domain'] = '%' . (string)$filters['domain'] . '%';
+            // Exact host match (was ILIKE '%domain%'): hits idx_pixel_events_host
+            // (btree on the same regexp_replace expr) instead of a lossy gin_trgm
+            // heap-recheck over every candidate row.
+            $cond[]           = "regexp_replace(pe.page_url, '^https?://([^/]+).*', '\\1') = :domain";
+            $params['domain'] = (string)$filters['domain'];
         }
         if (!empty($filters['search'])) {
             [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['search'], 'pe.referer', 'se');

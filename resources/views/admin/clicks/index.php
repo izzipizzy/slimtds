@@ -22,7 +22,7 @@ $flag = function (?string $cc): string {
 // Build a /admin/clicks URL that preserves currently active filters but
 // applies the given override(s). Used to make every cell value a one-click
 // shortcut to filter the list to that value.
-$filterFields = ['campaign_id', 'country', 'device', 'bot_view', 'is_uniq', 'is_trash', 'since', 'search', 'fp_js', 'fp_js_has'];
+$filterFields = ['campaign_id', 'country', 'device', 'bot_view', 'is_uniq', 'is_trash', 'since', 'search', 'entry_ref', 'fp_js', 'fp_js_has'];
 $filterUrl = function (array $overrides) use ($filters, $filterFields): string {
     $q = [];
     foreach ($filterFields as $k) {
@@ -542,6 +542,7 @@ $saveableView = ['is_trash', 'bot_view', 'search', 'entry_ref', 'fp_js_has'];
         'is_uniq'     => isset($filters['is_uniq']) && $filters['is_uniq'] !== null ? ($filters['is_uniq'] ? '1' : '0') : null,
         'is_trash'    => ($filters['is_trash'] ?? 'hide') !== 'hide' ? $filters['is_trash'] : null,
         'search'      => $filters['search'] ?? null,
+        'entry_ref'   => $filters['entry_ref'] ?? null,
         'fp_js'       => $filters['fp_js'] ?? null,
         'fp_js_has'   => $filters['fp_js_has'] ?? null,
     ], fn ($v) => $v !== null && $v !== '');
