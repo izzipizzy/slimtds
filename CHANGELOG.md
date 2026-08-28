@@ -9,6 +9,28 @@ must be built on. Only versions that were actually published carry a
 `## [x.y.z]` heading — everything that predates the public repository is listed
 at the bottom under a plain heading the tooling skips.
 
+## [0.7.3] — 2026-08-28
+
+A one-file release: 0.7.2 could not be built from this repository.
+
+### The pixel would not bundle
+
+`resources/js/pixel.js` carried the entry-referer block twice — the same
+capture written once with `let`/`const` and once with `var`, both kept by the
+merge that reconciled the two lines of development. Bun refuses that outright
+with `entryRef has already been declared`, so `make build-assets` failed, and
+with it every fresh install: the admin UI resolves its asset URLs through
+`manifest.json`, which never got written.
+
+This release is 0.7.2's tree with the duplicate `var` block removed. The
+`let`/`const` version is kept — that is the one the bundle was always meant to
+carry. Nothing else changed.
+
+The fix was made seventeen minutes after 0.7.2 was tagged and so missed it; the
+0.7.2 tag still carries the broken file. `make test` could not have caught it
+either — the suite does not build assets. The failure surfaced where it should
+have, in the image build, which is why no running deployment was affected.
+
 ## [0.7.2] — 2026-08-26
 
 Two lines of development that had drifted apart are one line again.
