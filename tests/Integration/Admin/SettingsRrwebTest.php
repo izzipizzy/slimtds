@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Admin\Controller\SettingsController;
 use App\Admin\Repository\SettingsRepository;
+use App\Mcp\ApiKeyService;
 use App\Shared\Asset\Manifest;
 use App\Shared\Db\Connection;
 use App\Shared\I18n\I18n;
@@ -23,6 +24,7 @@ beforeEach(function (): void {
         $this->db,
         new NotificationRegistry(),
         new TelegramNotifier(null, null),
+        new ApiKeyService($this->repo),
     );
 
     $root         = dirname(__DIR__, 3);

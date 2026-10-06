@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/13.0/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
          cacheDirectory=".phpunit.cache"
@@ -17,7 +17,7 @@
             <directory>tests/Arch</directory>
         </testsuite>
         <testsuite name="Browser">
-            <directory>tests/Browser</directory>
+            <directory suffix=".test.php">tests/Browser</directory>
         </testsuite>
     </testsuites>
     <source>
@@ -26,6 +26,7 @@
         </include>
     </source>
     <php>
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="test" force="true"/>
         <env name="APP_DEBUG" value="true" force="true"/>
         <env name="DB_DSN" value="pgsql:host=db-test;port=5432;dbname=slimtds_test" force="true"/>

@@ -1,8 +1,8 @@
 # slimTDS
 
 Slim-based Traffic Distribution System — a modern rewrite of
-[zTDS v0.8.4](https://github.com/anonymous/ztds) on **PHP 8.4** +
-**FrankenPHP** + **PostgreSQL 18** + **Bun/Tailwind 4/Alpine.js** + **Pest 4**.
+[zTDS v0.8.4](https://github.com/anonymous/ztds) on **PHP 8.5** +
+**FrankenPHP** + **PostgreSQL 18** + **Bun/Tailwind 4/Alpine.js** + **Pest 5**.
 
 **Documentation:** [slimtds.com/docs](https://slimtds.com/docs) — sources in
 [slimtds-docs](https://github.com/izzipizzy/slimtds-docs). The landing page lives in
@@ -53,7 +53,8 @@ own; this repository holds only the application.
 - **Zero site-change** — rides on the existing `/p.js` pixel; rrweb is bundled inside and activates automatically when the script is loaded
 - **`/p/rec`** — chunk-ingest endpoint; events land in `stats.rrweb_chunks` (daily-partitioned)
 - **`rrweb:flush`** cron (every minute) assembles completed sessions and writes final records
-- **`/admin/sessions`** — replay UI with campaign filter and rrweb-player
+- **`/admin/sessions`** — replay UI with campaign and activity filters. Records without mouse/touch movement, button presses or clicks are marked **possible bots**; this is a heuristic, not a confirmed bot verdict. The default view hides these records and includes all durations; unclassified records stay visible. Scrolling or typing alone does not satisfy this pointer-activity rule.
+- **Historical activity** — after migrating, run `bin/console rrweb:classify --all` inside the app container to classify existing recordings in bounded batches. Missing or damaged chunks stay unclassified; replay events are preserved.
 - **Settings** — `rrweb_sample_rate` (0–100 %) controls what fraction of visitors are recorded; `retention_rrweb_days` (default 7) controls partition retention
 
 ### Postback
@@ -61,6 +62,12 @@ own; this repository holds only the application.
 - **Incoming `/postback`** — receives affiliate network callbacks; UPSERTs to `core.conversions` (idempotent on `subid+status`)
 - **Outgoing S2S** — `core.postback_deliveries` outbox; worker with exponential-backoff retry (`postback:deliver` cron)
 - **Per-offer postback URLs** with `{click_id}`, `{payout}`, `{status}` macro substitution
+
+### MCP server
+
+- **`POST /mcp`** — read-only [Model Context Protocol](https://modelcontextprotocol.io) server so an AI client (Claude Code, Codex, Cursor, ...) can query an instance's traffic reports: campaigns, clicks, conversions, pixel events. Nine fixed report tools, no raw SQL, no writes — every call runs in a read-only, 15s-capped transaction.
+- One API key per instance, generated from **Settings → MCP**; IPs are masked to `/24`/`/48` by default before they reach an LLM provider.
+- Connect with `claude mcp add --transport http slimtds https://tds.example.com/mcp --header "Authorization: Bearer stds_YOUR_KEY"`. Full setup for every client, the tool reference and the security model: [docs/MCP.md](docs/MCP.md).
 
 ### Admin
 
@@ -101,7 +108,7 @@ own; this repository holds only the application.
 ### Tests
 
 - **~227 tests** — unit (38) + integration (182) + arch (7) — all green on every push, run against isolated `slimtds_test` DB
-- **Browser tests** (opt-in) — Pest 4 browser suite in `tests/Browser/`, skip-guarded with `BROWSER_TESTS=1`. Includes `PixelCrossDomain.test.php` that drives Chromium through 4 lander domains × 3 pages each, validating CORS + referrer attribution + FingerprintJS visitor stability across origins.
+- **Browser tests** (opt-in) — Pest 5 browser suite in `tests/Browser/`, skip-guarded with `BROWSER_TESTS=1`. Includes `PixelCrossDomain.test.php` that drives Chromium through 4 lander domains × 3 pages each, validating CORS + referrer attribution + FingerprintJS visitor stability across origins.
 
 ---
 
@@ -184,7 +191,7 @@ slimTDS/
 │   ├── Unit/                      # Pure function tests
 │   ├── Integration/               # DB-backed tests
 │   ├── Arch/                      # pest-plugin-arch invariants
-│   └── Browser/                   # Pest 4 browser tests (opt-in)
+│   └── Browser/                   # Pest 5 browser tests (opt-in)
 ├── composer.json
 ├── package.json
 ├── pest.xml
@@ -389,6 +396,7 @@ node /tmp/pixel-test.mjs   # walks all 4 sites + 3 pages each, verifies events +
 
 - [docs/TESTING.md](docs/TESTING.md) — test isolation, suites, browser tests
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment (all three modes)
+- [docs/MCP.md](docs/MCP.md) — MCP server: client setup, tool reference, security notes
 
 ---
 

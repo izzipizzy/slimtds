@@ -39,6 +39,13 @@ return static function (App $app): void {
     $app->get('/postback',  \App\Postback\PostbackController::class);
     $app->post('/postback', \App\Postback\PostbackController::class);
 
+    // MCP — read-only traffic analysis for AI clients. Outside the admin stack:
+    // no session, no CSRF; the Bearer key is the whole authentication.
+    $app->post('/mcp', \App\Mcp\McpController::class)->add(\App\Mcp\BearerAuthMiddleware::class);
+    // Without these two, GET /mcp would fall through to the campaign slug route.
+    $app->map(['GET', 'DELETE'], '/mcp', [\App\Mcp\McpController::class, 'methodNotAllowed']);
+    $app->get('/mcp/skill', \App\Mcp\SkillController::class);
+
     // Admin group with middleware stack
     $app->group('/admin', function (RouteCollectorProxy $g): void {
         // Login — gets rate-limit in addition
@@ -125,6 +132,11 @@ return static function (App $app): void {
         $g->get('/settings/backups/{name}/download',           [\App\Admin\Controller\BackupController::class, 'download']);
         $g->post('/settings/backups/{name}/delete',            [\App\Admin\Controller\BackupController::class, 'delete']);
         $g->post('/settings/notifications/test', [\App\Admin\Controller\SettingsController::class, 'testTelegram']);
+
+        // MCP key + options — inside the /admin/settings tabbed page
+        $g->post('/settings/mcp/generate', [\App\Admin\Controller\McpSettingsController::class, 'generate']);
+        $g->post('/settings/mcp/revoke',   [\App\Admin\Controller\McpSettingsController::class, 'revoke']);
+        $g->post('/settings/mcp/options',  [\App\Admin\Controller\McpSettingsController::class, 'options']);
 
         // Statistics dashboard
         $g->get('/statistics', [\App\Admin\Controller\StatsController::class, 'index']);

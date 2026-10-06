@@ -111,23 +111,19 @@ test('enqueue returns 0 for offer with no postback URLs', function (): void {
 });
 
 test('tick marks delivery as delivered when target returns 2xx', function (): void {
-    // Check if slimtds.local is reachable from the app container
-    $root = dirname(__DIR__, 3);
-    $healthCheck = shell_exec(sprintf(
-        'docker compose -f %s/docker-compose.yml -f %s/docker-compose.override.yml exec -T app '
-        . 'curl -sk -o /dev/null -w "%%{http_code}" https://slimtds.local/__health 2>/dev/null',
-        $root,
-        $root,
-    ));
-    if (trim((string)$healthCheck) !== '200') {
-        $this->markTestSkipped('slimtds.local not reachable from test runner — skipping live delivery test');
+    $base = rtrim(getenv('TEST_HTTP_BASE_URL') ?: 'https://slimtds.local', '/');
+    $url = $base . '/__health';
+    $check = curl_init($url);
+    curl_setopt_array($check, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2, CURLOPT_SSL_VERIFYPEER => false]);
+    curl_exec($check);
+    if ((int)curl_getinfo($check, CURLINFO_RESPONSE_CODE) !== 200) {
+        $this->markTestSkipped('Local HTTP test fixture is unavailable');
     }
 
-    // Insert a delivery row pointing at the health endpoint
     $this->db->execute(
         "INSERT INTO core.postback_deliveries (conversion_id, target_url, next_attempt_at)
-         VALUES (:conv, 'https://slimtds.local/__health', now())",
-        ['conv' => $this->conversionId],
+         VALUES (:conv, :url, now())",
+        ['conv' => $this->conversionId, 'url' => $url],
     );
 
     $id = (string)$this->db->fetchScalar('SELECT id FROM core.postback_deliveries LIMIT 1');

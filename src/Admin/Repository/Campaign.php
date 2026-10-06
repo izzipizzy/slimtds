@@ -41,4 +41,5 @@ final readonly class Campaign
             updatedAt:      new DateTimeImmutable((string)$row['updated_at']),
         );
     }
+
 }

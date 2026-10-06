@@ -83,3 +83,11 @@ test('alphabet contains no confusable chars', function (): void {
         ->not->toContain('I')
         ->not->toContain('l');
 });
+
+test('reserved words are not valid custom aliases', function (string $alias): void {
+    expect((new \App\Shared\CampaignIdGenerator())->validateCustom($alias))->toBeFalse();
+})->with(['mcp', 'MCP', 'admin', 'Postback']);
+
+test('an alias that merely contains a reserved word is still valid', function (): void {
+    expect((new \App\Shared\CampaignIdGenerator())->validateCustom('mcp2'))->toBeTrue();
+});

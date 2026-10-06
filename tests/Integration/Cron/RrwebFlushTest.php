@@ -96,3 +96,44 @@ test('drainOnce isolates a bad row: non-uuid sid is skipped, valid row still flu
     $sess = $this->db->fetchOne('SELECT event_count FROM stats.rrweb_sessions WHERE session_id = :s', ['s' => $good]);
     expect((int)$sess['event_count'])->toBe(2);
 });
+
+
+test('interaction persists across chunks and passive chunks never clear it', function (): void {
+    $sid = '99999999-9999-7999-8999-999999999999';
+    foreach ([false, true, false] as $seq => $active) {
+        $events = $active ? [['type' => 3, 'data' => ['source' => 2, 'type' => 7]]] : [['type' => 4, 'data' => []]];
+        $this->db->execute('INSERT INTO stats.rrweb_inbox (payload) VALUES (:p::jsonb)', [
+            'p' => json_encode(['c' => 'flx01', 'sid' => $sid, 'seq' => $seq, 'events' => $events]),
+        ]);
+        $this->cmd->drainOnce();
+        $row = $this->db->fetchOne('SELECT has_interaction FROM stats.rrweb_sessions WHERE session_id = :s', ['s' => $sid]);
+        expect($row['has_interaction'])->toBe($seq > 0);
+    }
+});
+
+test('passive new chunk cannot classify unknown historical events as inactive', function (): void {
+    $sid = '99999999-9999-7999-8999-999999999999';
+    $this->db->execute('INSERT INTO stats.rrweb_sessions (session_id, campaign_id, started_at, last_at) VALUES (:s, :c, now(), now())', ['s' => $sid, 'c' => $this->camp->id]);
+    $this->db->execute('INSERT INTO stats.rrweb_inbox (payload) VALUES (:p::jsonb)', [
+        'p' => json_encode(['c' => 'flx01', 'sid' => $sid, 'events' => [['type' => 4]]]),
+    ]);
+    $this->cmd->drainOnce();
+    $row = $this->db->fetchOne('SELECT has_interaction FROM stats.rrweb_sessions WHERE session_id = :s', ['s' => $sid]);
+    expect($row['has_interaction'])->toBeNull();
+});
+
+
+test('scrolling and typing do not mark a recording active until a pointer event arrives', function (): void {
+    $sid = '99999999-9999-7999-8999-999999999998';
+    foreach ([
+        [['type' => 3, 'data' => ['source' => 3, 'x' => 0, 'y' => 400]], ['type' => 3, 'data' => ['source' => 5, 'text' => 'value']]],
+        [['type' => 3, 'data' => ['source' => 1, 'positions' => [['x' => 20, 'y' => 30]]]]],
+    ] as $seq => $events) {
+        $this->db->execute('INSERT INTO stats.rrweb_inbox (payload) VALUES (:p::jsonb)', [
+            'p' => json_encode(['c' => 'flx01', 'sid' => $sid, 'seq' => $seq, 'events' => $events]),
+        ]);
+        $this->cmd->drainOnce();
+        $row = $this->db->fetchOne('SELECT has_interaction FROM stats.rrweb_sessions WHERE session_id = :s', ['s' => $sid]);
+        expect($row['has_interaction'])->toBe($seq === 1);
+    }
+});

@@ -6,17 +6,20 @@ namespace App\Engine;
 
 use App\Admin\Repository\Campaign;
 use App\Admin\Repository\CampaignRepository;
+use App\Admin\Repository\Flow;
 use App\Admin\Repository\Offer;
 use App\Admin\Repository\OfferRepository;
 use App\Engine\Schema\SchemaRegistry;
 use App\Shared\Db\Connection;
 use App\Shared\Referer\SearchEngine;
+use App\Shared\TestLink;
 use App\Admin\Repository\SettingsRepository;
 use App\Shared\Notification\NotificationRegistry;
 use App\Shared\Telegram\TelegramNotifier;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Ramsey\Uuid\Uuid;
+use Slim\Psr7\Factory\StreamFactory;
 
 final class ClickHandler
 {
@@ -61,8 +64,73 @@ final class ClickHandler
         $this->geo->lookup($ctx);
         $this->bot->detect($ctx);
 
-        $flow = $this->matcher->match($campaign->id, $ctx);
+        // Test link. A campaign key routes like real traffic (filters, bot
+        // detection) with only the country swappable; a flow key pins that
+        // flow and skips its filters. A wrong key is ordinary traffic.
+        $test = TestLink::fromRequest($request);
+        $testMode = null;
+        $flow = null;
+        if ($test !== null) {
+            if ($test->isCampaign($campaign->id)) {
+                $testMode = 'campaign';
+            } elseif (($flow = $this->matcher->forTestLink($campaign->id, $test)) !== null) {
+                $testMode = 'flow';
+                $ctx->matchedFlowId = $flow->id;
+            }
+            if ($testMode !== null && $test->geo !== null) {
+                $ctx->country = $test->geo;
+                $ctx->region = null;
+                $ctx->city = null;
+            }
+        }
 
+        $flow ??= $this->matcher->match($campaign->id, $ctx);
+        $resp = $this->route($campaign, $ctx, $flow, $request, $response, $needCookie);
+        if ($testMode === null) {
+            return $resp;
+        }
+
+        $trace = [
+            'mode'     => $testMode,
+            'ip'       => $ctx->ip,
+            'asn'      => $ctx->asn === null ? '-' : $ctx->asn . ($ctx->isp !== null ? ' ' . $ctx->isp : ''),
+            'country'  => $ctx->country ?? '-',
+            'device'   => $ctx->device ?? '-',
+            'bot'      => $ctx->isBot ? ($ctx->botName ?? 'yes') : 'no',
+            'flow'     => $flow === null ? '- (no flow matched: campaign fallback)' : $flow->name . ' [' . $flow->id . ']',
+            'offer'    => $ctx->matchedOfferId ?? '-',
+            'status'   => (string)$resp->getStatusCode(),
+            'location' => $resp->getHeaderLine('Location') ?: '-',
+        ];
+
+        if ($test?->dry === true) {
+            $text = '';
+            foreach ($trace as $k => $v) {
+                $text .= str_pad($k, 10) . (string)$v . "\n";
+            }
+            return $response
+                ->withStatus(200)
+                ->withoutHeader('Location')
+                ->withHeader('Content-Type', 'text/plain; charset=utf-8')
+                ->withHeader('Cache-Control', 'no-store')
+                ->withBody((new StreamFactory())->createStream($text));
+        }
+
+        $header = [];
+        foreach ($trace as $k => $v) {
+            $header[] = $k . '=' . rawurlencode((string)$v);
+        }
+        return $resp->withHeader('X-TDS-Debug', implode('; ', $header));
+    }
+
+    private function route(
+        Campaign $campaign,
+        Context $ctx,
+        ?Flow $flow,
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        bool $needCookie,
+    ): ResponseInterface {
         // Mint clickId early so macros like {click_id} resolve during URL expansion
         $ctx->clickId = Uuid::uuid7()->toString();
 
@@ -76,7 +144,7 @@ final class ClickHandler
 
         $outUrl = null;
         $schemaId = $flow->schemaId;
-        $schemaConfig = $flow->schemaConfig ?? [];
+        $schemaConfig = $flow->schemaConfig;
 
         if ($flow->targetType === 'offers' && $flow->targetOffers !== []) {
             // Flow override wins; null = inherit the campaign default.
@@ -142,32 +210,7 @@ final class ClickHandler
         $ua = $request->getHeaderLine('User-Agent') ?: '-';
         $ctx = new Context($ip, $ua, $slug, time());
 
-        $referer = $request->getHeaderLine('Referer');
-        if ($referer !== '') {
-            $ctx->referer = $referer;
-            $host = parse_url($referer, PHP_URL_HOST);
-            $ctx->refererDomain = is_string($host) ? strtolower($host) : null;
-        }
-
-        // Lander attribution: SEO-sites' nginx proxies /play/<button>/ → here and
-        // forwards the original Host as X-Lander-Host and original path+query as
-        // X-Lander-Path. Direct hits (without the proxy) leave both null.
-        $landerHost = strtolower(trim($request->getHeaderLine('X-Lander-Host')));
-        if ($landerHost !== '') {
-            $ctx->landerHost = $landerHost;
-            $h = preg_replace('/^www\./', '', $landerHost) ?? $landerHost;
-            // Strip the rightmost label as the TLD ("lander.example.com" → "lander").
-            // Compound TLDs (.co.uk, etc.) aren't currently in use across our SEO sites.
-            $ctx->landerDomain = preg_match('/^(.+)\.[^.]+$/', $h, $m) ? $m[1] : $h;
-        }
-        $landerPath = $request->getHeaderLine('X-Lander-Path');
-        if ($landerPath !== '') {
-            $pathOnly = strstr($landerPath, '?', true);
-            if ($pathOnly === false) $pathOnly = $landerPath;
-            if (preg_match('#^/play/([^/?]+)/?#', $pathOnly, $m)) {
-                $ctx->landerButton = strtolower($m[1]);
-            }
-        }
+        LanderContext::apply($ctx, $request);
 
         $query = $request->getQueryParams();
         foreach (['source', 'medium', 'campaign', 'term', 'content'] as $name) {

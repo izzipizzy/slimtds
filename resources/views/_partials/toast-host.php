@@ -20,7 +20,7 @@
      x-init="
         <?php foreach (['success', 'info', 'warn', 'error'] as $bucket): ?>
             <?php foreach (flash($bucket) as $msg): ?>
-                push({ type: '<?= e($bucket) ?>', msg: <?= json_encode($msg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP) ?> });
+                push({ type: '<?= e($bucket) ?>', msg: <?= e(json_encode($msg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP)) ?> });
             <?php endforeach; ?>
         <?php endforeach; ?>
      "

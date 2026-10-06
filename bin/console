@@ -44,6 +44,7 @@ $commands = [
     App\Cron\Command\PostbackDeliverCommand::class,
     App\Cron\Command\InboxFlushCommand::class,
     App\Cron\Command\RrwebFlushCommand::class,
+    App\Cron\Command\RrwebClassifyCommand::class,
     App\Cron\Command\VersionCheckCommand::class,
 ];
 
@@ -51,7 +52,7 @@ $commands = [
 // core.cron_runs (visible at /admin/settings → Cron log) with no per-command
 // boilerplate.
 foreach ($commands as $cls) {
-    $app->add($container->get($cls));
+    $app->addCommand($container->get($cls));
 }
 
 $app->run();

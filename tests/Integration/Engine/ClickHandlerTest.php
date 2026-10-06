@@ -426,3 +426,83 @@ test('Set-Cookie vu attached on first visit', function (): void {
     expect($setCookie)->toContain('vu=');
     expect($setCookie)->toContain('Path=/');
 });
+
+// ── test links ───────────────────────────────────────────────────────────────
+
+function testClick(ClickHandler $handler, string $query): \Psr\Http\Message\ResponseInterface
+{
+    $req = (new ServerRequestFactory())->createServerRequest('GET', '/clkt01?' . $query)
+        ->withHeader('User-Agent', 'Mozilla/5.0 (Macintosh) TestBrowser');
+    return $handler->handle($req, new Response(), 'clkt01');
+}
+
+test('campaign test key runs the real filters with the swapped country', function (): void {
+    $br = $this->offers->create(['name' => 'BR', 'url' => 'https://br.example/?c={country}', 'is_active' => '1']);
+    $brFlow = (new FlowRepository($this->db))->create($this->camp->id, [
+        'name' => 'br only',
+        'filters' => [[['field' => 'country', 'op' => 'eq', 'value' => 'br']]],
+        'target_type' => 'offers',
+        'target_offers' => [['offer_id' => $br->id, 'weight' => 100]],
+        'schema_id' => 2,
+        'is_active' => '1',
+    ]);
+    // Put the geo flow ahead of the catch-all.
+    $this->db->execute('UPDATE core.flows SET position = 0 WHERE id = :id', ['id' => $brFlow->id]);
+    $this->db->execute('UPDATE core.flows SET position = 5 WHERE id = :id', ['id' => $this->flow->id]);
+
+    $key = \App\Shared\TestLink::campaignKey($this->camp->id);
+    $resp = testClick($this->handler, '_t=' . $key . '&_geo=BR');
+
+    expect($resp->getHeaderLine('Location'))->toBe('https://br.example/?c=br')
+        ->and($resp->getHeaderLine('X-TDS-Debug'))->toContain('mode=campaign')
+        ->and($resp->getHeaderLine('X-TDS-Debug'))->toContain('bot=no');
+
+    // Same key without _geo: the filter does not pass, catch-all wins.
+    $plain = testClick($this->handler, '_t=' . $key);
+    expect($plain->getHeaderLine('Location'))->toStartWith('https://example.com/');
+});
+
+test('campaign test key still lands a bot in the bot flow', function (): void {
+    $key = \App\Shared\TestLink::campaignKey($this->camp->id);
+    $req = (new ServerRequestFactory())->createServerRequest('GET', '/clkt01?_t=' . $key . '&_dbg=1')
+        ->withHeader('User-Agent', 'curl/8.4.0');
+    $resp = $this->handler->handle($req, new Response(), 'clkt01');
+
+    expect((string)$resp->getBody())->toMatch('/^bot\s+(?!no)/m');
+});
+
+test('flow test key forces a switched-off flow past its filters', function (): void {
+    $hidden = $this->offers->create(['name' => 'H', 'url' => 'https://hidden.example/', 'is_active' => '1']);
+    $flow = (new FlowRepository($this->db))->create($this->camp->id, [
+        'name' => 'draft',
+        'filters' => [[['field' => 'country', 'op' => 'eq', 'value' => 'zz']]],
+        'target_type' => 'offers',
+        'target_offers' => [['offer_id' => $hidden->id, 'weight' => 100]],
+        'schema_id' => 2,
+        'is_active' => '0',
+    ]);
+
+    $resp = testClick($this->handler, '_t=' . \App\Shared\TestLink::flowKey($flow->id));
+
+    expect($resp->getHeaderLine('Location'))->toBe('https://hidden.example/')
+        ->and($resp->getHeaderLine('X-TDS-Debug'))->toContain('mode=flow');
+    $logged = $this->db->fetchScalar('SELECT flow_id FROM stats.clicks ORDER BY created_at DESC LIMIT 1');
+    expect($logged)->toBe($flow->id);
+});
+
+test('a wrong test key is ordinary traffic with no trace', function (): void {
+    $resp = testClick($this->handler, '_t=abcdef012345&_dbg=1');
+
+    expect($resp->getStatusCode())->toBe(302)
+        ->and($resp->hasHeader('X-TDS-Debug'))->toBeFalse();
+});
+
+test('_dbg answers with a plain-text trace instead of redirecting', function (): void {
+    $resp = testClick($this->handler, '_t=' . \App\Shared\TestLink::campaignKey($this->camp->id) . '&_dbg=1');
+    $body = (string)$resp->getBody();
+
+    expect($resp->getStatusCode())->toBe(200)
+        ->and($resp->getHeaderLine('Location'))->toBe('')
+        ->and($body)->toContain('flow      all → offer')
+        ->and($body)->toContain('location  https://example.com/');
+});

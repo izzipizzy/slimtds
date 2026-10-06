@@ -1,10 +1,10 @@
 # ===== Stage: assets-builder =====
-FROM oven/bun:1-alpine AS assets-builder
+FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f AS assets-builder
 
 WORKDIR /app
 
-COPY package.json bunfig.toml ./
-RUN bun install
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile
 
 COPY resources ./resources
 COPY public/assets ./public/assets
@@ -14,7 +14,7 @@ COPY tailwind.config.js ./
 RUN bun run build
 
 # ===== Stage: vendor =====
-FROM composer:2 AS vendor
+FROM composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac AS vendor
 
 WORKDIR /app
 
@@ -25,14 +25,8 @@ COPY . ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
 # ===== Stage: runtime =====
-# Pinned by digest: the floating tag moves under us, so a rebuild would swap the
-# FrankenPHP/Caddy/PHP runtime as a side effect of an unrelated deploy. This is the
-# FrankenPHP version production is already on — v1.12.6 / Caddy v2.11.4 — so the
-# deploy that finally applies the mode-selected Caddyfile changes one thing, not two.
-# PHP is 8.4.24 against production's 8.4.23: this tag was rebuilt and the 8.4.23
-# image is no longer published, so one security patch is the smallest step available.
-# Moving to FrankenPHP 1.12.7 is a separate change, with its own rollback.
-FROM dunglas/frankenphp:1.12.6-php8.4-alpine@sha256:fe1f8c7dff4a4945f95a6c72eb0f7b416bce7bd9c7557c806deab99c324c46da AS runtime
+# Pin the PHP 8.5 / FrankenPHP runtime for reproducible builds.
+FROM dunglas/frankenphp:1.12.7-php8.5-alpine@sha256:34c27f58cd2343a004e836db3c82705150f4f47920b640b976707a6c7f4b8686 AS runtime
 
 # Системные зависимости для расширений
 RUN apk add --no-cache \

@@ -32,8 +32,12 @@ final class CampaignForm
 
         $slug = trim((string)($data['slug'] ?? ''));
         if ($slug !== '') {
-            // custom slug — validate format
-            if (!$this->idGen->validateCustom($slug)) {
+            // custom slug — validate format. When editing, the reserved-word
+            // check is waived for the campaign's own current slug so an
+            // existing campaign that already has one (grandfathered in, or
+            // inserted directly) doesn't become uneditable.
+            $currentSlug = $updatingId !== null ? $this->repo->findById($updatingId)?->slug : null;
+            if (!$this->idGen->validateCustom($slug, $currentSlug)) {
                 $errors['slug'] = 'validation.pattern';
             } elseif ($this->repo->slugExists($slug, $updatingId)) {
                 $errors['slug'] = 'campaigns.slug_taken';

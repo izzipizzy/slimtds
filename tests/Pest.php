@@ -52,3 +52,38 @@ function pdo(): PDO
     }
     return $pdo;
 }
+
+/** Browser E2E targets; override both URL and DSN for a disposable stack. */
+function browserUrl(string $path = ''): string
+{
+    $base = getenv('BROWSER_BASE_URL');
+    if (!$base) {
+        throw new RuntimeException('Set BROWSER_BASE_URL to an app connected to the disposable browser test database.');
+    }
+    return rtrim($base, '/') . $path;
+}
+
+function browserPdo(): PDO
+{
+    $dsn = getenv('TEST_PG_DSN');
+    if (!$dsn || !getenv('BROWSER_BASE_URL')) {
+        throw new RuntimeException('Browser tests require explicit TEST_PG_DSN and BROWSER_BASE_URL; they reset fixtures.');
+    }
+    return new PDO(
+        $dsn,
+        getenv('TEST_PG_USER') ?: 'slimtds',
+        getenv('TEST_PG_PASSWORD') ?: 'slimtds',
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
+    );
+}
+
+/** Seed the disposable browser administrator independently of other suites. */
+function browserAdmin(string $password): void
+{
+    $pdo = browserPdo();
+    $stmt = $pdo->prepare("INSERT INTO core.admins (login, password_hash, must_change_password)
+        VALUES ('admin', :hash, false) ON CONFLICT (login) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash, must_change_password = false");
+    $stmt->execute(['hash' => password_hash($password, PASSWORD_ARGON2ID)]);
+    $pdo->exec('DELETE FROM core.rate_limits');
+}

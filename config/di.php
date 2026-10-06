@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Shared\Auth\PasswordHasher;
 use App\Shared\Db\Partitions;
 use DI\ContainerBuilder;
+use Psr\Container\ContainerInterface;
 
 /**
  * Update-check configuration. Read in one place so the web process and the
@@ -94,6 +95,7 @@ return static function (): \DI\Container {
         \App\Shared\Notification\NotificationRegistry::class => \DI\autowire(),
         \App\Admin\Controller\SettingsController::class => \DI\autowire(),
         \App\Admin\Controller\BackupController::class => \DI\autowire(),
+        \App\Admin\Controller\McpSettingsController::class => \DI\autowire(),
         \App\Stats\StatsRepository::class => \DI\autowire(),
         \App\Admin\Controller\StatsController::class => \DI\autowire(),
         \App\Admin\Middleware\PasswordChangeRequiredMiddleware::class => \DI\autowire(),
@@ -122,8 +124,44 @@ return static function (): \DI\Container {
             ),
         \App\Postback\PostbackOutbox::class => \DI\autowire(),
         \App\Postback\PostbackController::class => \DI\autowire(),
+
+        // MCP (read-only traffic analysis)
+        \App\Mcp\ApiKeyService::class => \DI\autowire(),
+        \App\Mcp\ReportFilters::class => \DI\autowire(),
+        \App\Mcp\PixelReportRepository::class => \DI\autowire(),
+        \App\Mcp\BearerAuthMiddleware::class => \DI\autowire(),
+        \App\Mcp\McpController::class => \DI\autowire(),
+        \App\Mcp\SkillController::class => \DI\autowire(),
+        \App\Mcp\PromptRegistry::class => \DI\autowire(),
+        \App\Mcp\Tool\ListCampaignsTool::class => \DI\autowire(),
+        \App\Mcp\Tool\GetCampaignTool::class => \DI\autowire(),
+        \App\Mcp\Tool\TrafficSummaryTool::class => \DI\autowire(),
+        \App\Mcp\Tool\TrafficTimelineTool::class => \DI\autowire(),
+        \App\Mcp\Tool\TrafficBreakdownTool::class => \DI\autowire(),
+        \App\Mcp\Tool\ListClicksTool::class => \DI\autowire(),
+        \App\Mcp\Tool\VisitorJourneyTool::class => \DI\autowire(),
+        \App\Mcp\Tool\ConversionsSummaryTool::class => \DI\autowire(),
+        \App\Mcp\Tool\PixelSummaryTool::class => \DI\autowire(),
+        \App\Mcp\ToolRegistry::class => static fn (ContainerInterface $c): \App\Mcp\ToolRegistry => new \App\Mcp\ToolRegistry(
+            $c->get(\App\Mcp\Tool\ListCampaignsTool::class),
+            $c->get(\App\Mcp\Tool\GetCampaignTool::class),
+            $c->get(\App\Mcp\Tool\TrafficSummaryTool::class),
+            $c->get(\App\Mcp\Tool\TrafficTimelineTool::class),
+            $c->get(\App\Mcp\Tool\TrafficBreakdownTool::class),
+            $c->get(\App\Mcp\Tool\ListClicksTool::class),
+            $c->get(\App\Mcp\Tool\VisitorJourneyTool::class),
+            $c->get(\App\Mcp\Tool\ConversionsSummaryTool::class),
+            $c->get(\App\Mcp\Tool\PixelSummaryTool::class),
+        ),
+        \App\Mcp\JsonRpcDispatcher::class => static fn (ContainerInterface $c): \App\Mcp\JsonRpcDispatcher => new \App\Mcp\JsonRpcDispatcher(
+            $c->get(\App\Mcp\ToolRegistry::class),
+            $c->get(\App\Mcp\PromptRegistry::class),
+            $c->get(\App\Shared\Version\BuildInfo::class)->tag() ?: 'dev',
+            \App\Mcp\McpController::readOnlyGuard($c->get(\App\Shared\Db\Connection::class)),
+        ),
         \App\Cron\Command\PostbackDeliverCommand::class => \DI\autowire(),
         \App\Cron\Command\RrwebFlushCommand::class => \DI\autowire(),
+        \App\Cron\Command\RrwebClassifyCommand::class => \DI\autowire(),
         \App\Cron\Command\BotsUpdateExtraCommand::class => \DI\autowire(),
         \App\Shared\I18n\TranslatorFactory::class => static function (): \App\Shared\I18n\TranslatorFactory {
             return new \App\Shared\I18n\TranslatorFactory(dirname(__DIR__) . '/resources/translations');

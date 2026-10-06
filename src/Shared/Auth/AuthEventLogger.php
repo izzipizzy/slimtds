@@ -13,6 +13,8 @@ final class AuthEventLogger
     public const EVENT_PASSWORD_CHANGE = 'password_change';
     public const EVENT_LOGOUT          = 'logout';
     public const EVENT_RATE_LIMITED    = 'rate_limited';
+    public const EVENT_MCP_KEY_GENERATED = 'mcp_key_generated';
+    public const EVENT_MCP_KEY_REVOKED   = 'mcp_key_revoked';
 
     public function __construct(private readonly Connection $db) {}
 
@@ -32,6 +34,8 @@ final class AuthEventLogger
             self::EVENT_PASSWORD_CHANGE,
             self::EVENT_LOGOUT,
             self::EVENT_RATE_LIMITED,
+            self::EVENT_MCP_KEY_GENERATED,
+            self::EVENT_MCP_KEY_REVOKED,
         ];
         if (!in_array($eventType, $valid, true)) {
             throw new \InvalidArgumentException("unknown event_type: {$eventType}");

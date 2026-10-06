@@ -64,7 +64,7 @@ final class SystemStats
             return null;
         }
         $la = @sys_getloadavg();
-        if (!is_array($la) || count($la) < 3) {
+        if (!is_array($la)) {
             return null;
         }
         return [round((float)$la[0], 2), round((float)$la[1], 2), round((float)$la[2], 2)];

@@ -349,8 +349,16 @@ clicks:
   columns_save: Сохранить
   columns_reset: Сбросить
   chart:
-    last_48h: последние 48 часов
     hourly_filtered: по часам · с фильтрами
+    daily_filtered: по дням · с фильтрами
+  kpi:
+    clicks: Клики
+    unique_visitors: Уник. посетители
+    unique_fp: Уник. фингерпринты
+    conversions: Конверсии
+    approved: апрув
+  top_landers: Топ лендингов
+  top_offers: Топ оферов
   filter:
     campaign: Кампания
     country: Страна
@@ -415,13 +423,15 @@ pixel:
   columns_save: Сохранить
   columns_reset: Сбросить
   chart:
-    last_48h: последние 48 часов
     hourly_filtered: по часам · с фильтрами
+    daily_filtered: по дням · с фильтрами
   filter:
     campaign: Кампания
     event: Событие
     domain: Домен
     since: С момента
+    country: Страна
+    country_ph: ru / us
     bot: Бот
     referer: Referer
     any_campaign: '— все кампании —'
@@ -520,6 +530,7 @@ settings:
     backups: Бэкапы
     cron: Крон-лог
     notifications: Уведомления
+    mcp: MCP
   retention:
     heading: Хранение (дней)
     hint: 'Сколько дней хранить данные. Изменения применяются при следующем запуске {cmd} (раз в сутки в 02:00 UTC).'
@@ -574,6 +585,38 @@ settings:
     template: Шаблон
     template_hint: 'Очистите поле и сохраните, чтобы вернуть шаблон по умолчанию. Доступные макросы:'
     save: Сохранить уведомления
+  mcp:
+    heading: MCP-сервер
+    intro: 'Даёт AI-клиенту — Claude Code, Codex, Cursor — читать отчёты по трафику этого инстанса. Только чтение: кампании, потоки и офферы изменить нельзя.'
+    status_off: Выключен — ключа нет
+    status_on: Включён
+    key: Ключ
+    created: Создан
+    last_used: Последнее обращение
+    never: ни разу
+    generate: Создать ключ
+    regenerate: Перевыпустить
+    revoke: Отозвать
+    confirm_regenerate: 'Текущий ключ сразу перестанет работать, всем клиентам понадобится новый. Продолжить?'
+    confirm_revoke: 'Все подключённые клиенты потеряют доступ. Продолжить?'
+    new_key_title: Ваш ключ — показывается один раз
+    new_key_hint: 'Скопируйте сейчас. Хранится только хэш, показать ключ снова нельзя; если потерян — перевыпустите.'
+    copy: Копировать
+    copied: Скопировано
+    full_ip: Отдавать полные IP-адреса
+    full_ip_hint: 'По умолчанию выключено: отчёты уходят LLM-провайдеру, поэтому IPv4 обрезается до /24, IPv6 — до /48.'
+    save: Сохранить
+    install: Подключить клиент
+    install_hint: 'В сниппеты подставлен адрес этого инстанса. Ключ вписан только сразу после создания — иначе вставьте свой вместо {placeholder}.'
+    client_claude: Claude Code
+    client_codex: Codex
+    client_json: Cursor, VS Code, Windsurf
+    client_desktop: Claude Desktop
+    codex_env: 'и экспортируйте ключ в профиле шелла:'
+    skill: Скилл для агента
+    skill_hint: 'Необязательно. Учит агента читать эти отчёты — разбор кампании, аудит ботов, утечки воронки. Те же подсказки уже приходят каждому клиенту как MCP-промпты.'
+    web_note: 'claude.ai в браузере требует OAuth для своих коннекторов и не поддерживается.'
+    cf_note: 'За Cloudflare: если клиенты получают 403, исключите /mcp из Bot Fight Mode.'
 
 form:
   save: Сохранить
@@ -614,6 +657,14 @@ pagination:
   next: вперёд
 
 filter_opt:
+  date_range: Период
+  date_from: Дата с
+  date_to: Дата по
+  range_7d: 7 дней
+  range_30d: месяц
+  range_90d: 3 месяца
+  range_365d: год
+  range_all: всё время
   any: '— любой —'
   all: '— все —'
   humans_only: только люди
@@ -633,6 +684,31 @@ nav:
   sessions: Сессии
 
 sessions:
+  activity_not_bot: "Без возможных ботов"
+  filter_activity: "Активность / боты"
+  activity_all: "Вся активность"
+  activity_inactive: "Возможные боты — нет активности"
+  activity_active: "Есть активность"
+  activity_unknown: "Не проверено"
+  activity_badge_inactive: "Возможный бот"
+  activity_hint_inactive: "В записи нет движений мыши, нажатий, кликов или касаний. Это предположение, а не подтверждение бота."
+  activity_hint_active: "В записи есть движение мыши, нажатие, клик или касание."
+  activity_hint_unknown: "Запись ещё не проверена или часть событий недоступна."
+  filter_browser: "Браузер"
+  filter_os: "ОС"
+  filter_device: "Устройство"
+  filter_source: "Источник"
+  subtitle: "Записи посещений: от первого открытия страницы до последнего действия."
+  empty_hint: "Измените фильтры или дождитесь новых записей посещений."
+  seconds: "с"
+  player_play: "Смотреть"
+  player_pause: "Пауза"
+  player_timeline: "Позиция воспроизведения"
+  player_speed: "Скорость воспроизведения"
+  player_loading: "Загружаем запись…"
+  player_load_error: "Не удалось загрузить запись. Обновите страницу и попробуйте снова."
+  player_empty_recording: "В этой записи недостаточно событий для воспроизведения."
+  player_recording: "Запись"
   title: Сессии
   all_campaigns: Все кампании
   all_domains: Все домены
@@ -669,3 +745,17 @@ version:
   stale_title: 'Проверка обновлений давно не проходила успешно'
   toast_behind: 'Доступна новая версия %s'
   how_to_update: 'как обновиться'
+
+test_link:
+  eyebrow: тест
+  copy_link: ссылка
+  copy_param: параметр
+  copied: Тестовая ссылка скопирована
+  direct: Прямой клик (с разбором вместо редиректа)
+  lander: Параметр для URL лендинга
+  campaign_title: Тестовая ссылка кампании
+  campaign_hint: 'Маршрутизация как у обычного визитора: фильтры, детект ботов, порядок потоков. Показывает твой IP, ASN, признан ли ботом и какой поток сработал.'
+  flow_title: Тестовая ссылка потока
+  flow_hint: 'Направляет запрос сразу в этот поток, минуя его фильтры — работает даже для выключенного потока. Проверяет офферы и схему, а не фильтры.'
+  extras: '&_geo=de — подменить страну; уберите &_dbg=1, чтобы получить настоящий редирект (разбор останется в заголовке X-TDS-Debug).'
+  disabled: Тестовые ссылки выключены — не задан APP_SECRET.

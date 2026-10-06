@@ -51,6 +51,7 @@ final readonly class Flow
         );
     }
 
+
     private static function decodeJson(string $json, array $default): array
     {
         $v = json_decode($json, true);

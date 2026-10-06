@@ -141,6 +141,7 @@ final class CampaignRepository
         return $this->db->execute('DELETE FROM core.campaigns WHERE id = :id', ['id' => $id]) > 0;
     }
 
+
     private function generateUniqueSlug(int $maxAttempts = 10): string
     {
         for ($i = 0; $i < $maxAttempts; $i++) {

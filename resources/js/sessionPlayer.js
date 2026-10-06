@@ -1,144 +1,153 @@
 import { Replayer } from 'rrweb'
 
-// Session replay UI driven by rrweb's Replayer directly.
-//
-// We do NOT use the `rrweb-player` Svelte wrapper: rrweb-player 2.0.1 mounts
-// only an empty `.rr-player__frame` (its Frame onMount never builds the
-// Replayer), while rrweb's own Replayer renders correctly. So we build our own
-// controller around it: play/pause, a seek timeline, speed options and a time
-// readout.
 window.slimSessionPlayer = function (el, eventsUrl) {
   if (!el) return
-
-  function mkBtn(txt) {
-    var b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'btn'
-    b.textContent = txt
-    b.style.cssText = 'cursor:pointer;padding:4px 12px;font:inherit;white-space:nowrap'
-    return b
+  const labels = el.dataset
+  const icon = (body) => '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' + body + '</svg>'
+  const playIcon = icon('<path d="m8 5 11 7-11 7z"/>')
+  const pauseIcon = icon('<path d="M9 5v14M15 5v14"/>')
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000))
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
   }
-  function fmt(ms) {
-    var s = Math.max(0, Math.floor(ms / 1000))
-    return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2)
+  const message = (text) => {
+    const node = document.createElement('div')
+    node.className = 'session-player-message'
+    node.setAttribute('role', 'status')
+    node.textContent = text
+    el.replaceChildren(node)
   }
-
+  message(labels.loading)
   fetch(eventsUrl)
-    .then(function (r) { return r.json() })
-    .then(function (data) {
-      var events = (data && data.events) || []
-      if (events.length < 2) {
-        el.textContent = 'Not enough events to replay.'
-        return
-      }
+    .then((response) => {
+      if (!response.ok) throw new Error('Session response ' + response.status)
+      return response.json()
+    })
+    .then((data) => {
+      const events = data?.events || []
+      if (events.length < 2) { message(labels.emptyRecording); return }
 
-      var bar = document.createElement('div')
-      bar.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;flex-wrap:wrap;border-top:1px solid var(--line,#e3e7ee);margin-top:8px'
-      var playBtn = mkBtn('❚❚ Pause')
-      var seek = document.createElement('input')
+      const address = document.createElement('div')
+      address.className = 'session-player-address'
+      address.innerHTML = icon('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18"/>')
+      const url = document.createElement('span')
+      url.className = 'session-player-url'
+      const badge = document.createElement('span')
+      badge.className = 'badge badge-ghost'
+      badge.textContent = labels.recording
+      address.append(url, badge)
+      const stage = document.createElement('div')
+      stage.className = 'session-player-stage'
+      const viewport = document.createElement('div')
+      viewport.className = 'session-player-viewport'
+      stage.append(viewport)
+      const bar = document.createElement('div')
+      bar.className = 'session-player-controls'
+      const playBtn = document.createElement('button')
+      playBtn.type = 'button'
+      playBtn.className = 'btn session-player-toggle'
+      const seek = document.createElement('input')
+      seek.className = 'session-player-timeline'
       seek.type = 'range'; seek.min = '0'; seek.max = '1000'; seek.value = '0'; seek.step = '1'
-      seek.style.cssText = 'flex:1;min-width:220px;cursor:pointer;accent-color:var(--accent,#b54f17)'
-      var timeLabel = document.createElement('span')
-      timeLabel.style.cssText = 'font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted,#6b6457);min-width:96px;text-align:right'
-      var speedWrap = document.createElement('span')
-      speedWrap.style.cssText = 'display:inline-flex;gap:4px'
-      var speedBtns = [1, 2, 4, 8].map(function (s) { var b = mkBtn(s + '×'); b.dataset.speed = String(s); speedWrap.appendChild(b); return b })
-
-      bar.appendChild(playBtn)
-      bar.appendChild(seek)
-      bar.appendChild(timeLabel)
-      bar.appendChild(speedWrap)
-
-      // Current page URL, updated as the replay crosses page navigations.
-      var urlLine = document.createElement('div')
-      urlLine.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--muted,#6b6457);padding:4px 0;border-bottom:1px solid var(--line,#e3e7ee);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-      function showUrl(href) { urlLine.textContent = href || '—' }
-      for (var mi = 0; mi < events.length; mi++) {
-        if (events[mi].type === 4 && events[mi].data && events[mi].data.href) { showUrl(events[mi].data.href); break }
-      }
-
-      var stage = document.createElement('div')
-      el.appendChild(urlLine)
-      el.appendChild(stage)
-      el.appendChild(bar)
-
-      var replayer
-      try {
-        replayer = new Replayer(events, { root: stage, speed: 1, skipInactive: false })
-      } catch (e) {
-        el.textContent = 'Player error: ' + (e && e.message ? e.message : e)
-        return
-      }
-      // rrweb casts each event during playback; Meta (type 4) marks a new page.
-      replayer.on('event-cast', function (ev) {
-        if (ev && ev.type === 4 && ev.data && ev.data.href) showUrl(ev.data.href)
+      seek.setAttribute('aria-label', labels.timeline)
+      const time = document.createElement('span')
+      time.className = 'session-player-time'
+      const speeds = document.createElement('div')
+      speeds.className = 'session-player-speed'
+      speeds.setAttribute('role', 'group')
+      speeds.setAttribute('aria-label', labels.speed)
+      const speedBtns = [1, 2, 4, 8].map((speed) => {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.textContent = speed + '×'
+        b.dataset.speed = String(speed)
+        b.setAttribute('aria-pressed', speed === 1 ? 'true' : 'false')
+        speeds.append(b)
+        return b
       })
+      bar.append(playBtn, seek, time, speeds)
+      el.replaceChildren(address, stage, bar)
 
-      // Fit the recorded viewport to the container width WITHOUT upscaling:
-      // wide desktop recordings shrink to fit, but narrow (mobile) recordings
-      // render at their real captured size instead of being blown up.
-      function fit() {
-        var wrap = stage.querySelector('.replayer-wrapper')
+      let meta = events.find((event) => event.type === 4)
+      const showUrl = (href) => { url.textContent = href || '—'; url.title = href || '' }
+      showUrl(meta?.data?.href)
+      const replayer = new Replayer(events, { root: viewport, speed: 1, skipInactive: false })
+      const fit = () => {
+        const wrap = viewport.querySelector('.replayer-wrapper')
         if (!wrap) return
-        var meta = null
-        for (var i = 0; i < events.length; i++) { if (events[i].type === 4) { meta = events[i]; break } }
-        var rw = (meta && meta.data && meta.data.width) || 1024
-        var rh = (meta && meta.data && meta.data.height) || 576
-        var availW = el.clientWidth || stage.clientWidth || 900
-        var scale = Math.min(1, availW / rw)
+        const rw = meta?.data?.width || 1024
+        const rh = meta?.data?.height || 576
+        const style = getComputedStyle(stage)
+        const available = stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        const maxHeight = Math.max(220, Math.min(640, window.innerHeight * 0.65))
+        const scale = Math.min(1, Math.max(1, available) / rw, maxHeight / rh)
+        viewport.style.width = Math.round(rw * scale) + 'px'
+        viewport.style.height = Math.round(rh * scale) + 'px'
         wrap.style.transform = 'scale(' + scale + ')'
         wrap.style.transformOrigin = 'top left'
-        stage.style.height = Math.round(rh * scale) + 'px'
-        stage.style.overflow = 'hidden'
       }
-      fit()
-      addEventListener('resize', fit)
-
-      var total = replayer.getMetaData().totalTime || 1
-      var playing = false
-      var seeking = false
-
-      function setPlaying(p) { playing = p; playBtn.textContent = p ? '❚❚ Pause' : '▶ Play' }
-      function setSpeed(s) {
-        replayer.setConfig({ speed: s })
-        speedBtns.forEach(function (b) { b.style.fontWeight = (Number(b.dataset.speed) === s) ? '700' : '400' })
-      }
-
-      playBtn.onclick = function () {
-        if (playing) { replayer.pause(); setPlaying(false) }
-        else { replayer.play(replayer.getCurrentTime()); setPlaying(true) }
-      }
-      speedBtns.forEach(function (b) { b.onclick = function () { setSpeed(Number(b.dataset.speed)) } })
-
-      seek.addEventListener('input', function () {
-        seeking = true
-        var t = (Number(seek.value) / 1000) * total
-        timeLabel.textContent = fmt(t) + ' / ' + fmt(total)
+      replayer.on('event-cast', (event) => {
+        if (event?.type === 4) { meta = event; showUrl(event.data?.href); fit() }
       })
-      seek.addEventListener('change', function () {
-        var t = (Number(seek.value) / 1000) * total
-        if (playing) { replayer.play(t) } else { replayer.pause(t) }
+      fit()
+      const observer = new ResizeObserver(fit)
+      observer.observe(stage)
+      window.addEventListener('resize', fit)
+      const total = replayer.getMetaData().totalTime || 1
+      let playing = false
+      let seeking = false
+      const setPlaying = (value) => {
+        playing = value
+        playBtn.innerHTML = value ? pauseIcon : playIcon
+        playBtn.append(document.createTextNode(value ? labels.pause : labels.play))
+        playBtn.setAttribute('aria-label', value ? labels.pause : labels.play)
+      }
+      const setSpeed = (speed) => {
+        replayer.setConfig({ speed })
+        speedBtns.forEach((button) => button.setAttribute('aria-pressed', Number(button.dataset.speed) === speed ? 'true' : 'false'))
+      }
+      playBtn.onclick = () => {
+        if (playing) { replayer.pause(); setPlaying(false) }
+        else {
+          const current = replayer.getCurrentTime()
+          replayer.play(current >= total ? 0 : current)
+          setPlaying(true)
+        }
+      }
+      speedBtns.forEach((button) => { button.onclick = () => setSpeed(Number(button.dataset.speed)) })
+      const updateTimeline = (t) => {
+        seek.style.setProperty('--progress', String(t / total * 100) + '%')
+        time.textContent = fmt(t) + ' / ' + fmt(total)
+        seek.setAttribute('aria-valuetext', fmt(t) + ' / ' + fmt(total))
+      }
+      seek.addEventListener('input', () => {
+        seeking = true
+        updateTimeline(Number(seek.value) / 1000 * total)
+      })
+      seek.addEventListener('change', () => {
+        const t = Number(seek.value) / 1000 * total
+        if (playing) replayer.play(t)
+        else replayer.pause(t)
         seeking = false
       })
-
-      replayer.on('finish', function () { setPlaying(false) })
-
-      function loop() {
+      replayer.on('finish', () => setPlaying(false))
+      const loop = () => {
+        if (!el.isConnected) { observer.disconnect(); window.removeEventListener('resize', fit); return }
         if (!seeking) {
-          var t = Math.min(replayer.getCurrentTime(), total)
-          seek.value = String(Math.round((t / total) * 1000))
-          timeLabel.textContent = fmt(t) + ' / ' + fmt(total)
+          const t = Math.max(0, Math.min(replayer.getCurrentTime(), total))
+          seek.value = String(Math.round(t / total * 1000))
+          updateTimeline(t)
         }
         requestAnimationFrame(loop)
       }
+      updateTimeline(0)
       requestAnimationFrame(loop)
-
       setSpeed(1)
       replayer.play()
       setPlaying(true)
     })
-    .catch(function (e) {
-      console.error('[slimSessionPlayer]', e)
-      el.textContent = 'Failed to load session.'
+    .catch((error) => {
+      console.error('[slimSessionPlayer]', error)
+      message(labels.loadError)
     })
 }

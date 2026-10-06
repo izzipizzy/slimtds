@@ -11,6 +11,7 @@ use App\Engine\GeoLookup;
 use App\Shared\Db\Connection;
 use App\Shared\Db\Partitions;
 use App\Shared\Ua\BrowserLabel;
+use App\Shared\Rrweb\Interaction;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -148,9 +149,9 @@ final class RrwebFlushCommand extends Command
                 $this->db->execute(
                     <<<'SQL'
                         INSERT INTO stats.rrweb_sessions
-                            (session_id, campaign_id, visitor_uuid, fp_js, page_url, started_at, last_at, chunk_count, event_count, bytes, country, device, ip, os, browser, first_event_ms, last_event_ms, referer)
+                            (session_id, campaign_id, visitor_uuid, fp_js, page_url, started_at, last_at, chunk_count, event_count, bytes, country, device, ip, os, browser, first_event_ms, last_event_ms, referer, has_interaction)
                         VALUES
-                            (:sid, :cid, :vu, :fp, :purl, :created_at, :created_at, 1, :ec, :bytes, :country, :device, :ip, :os, :browser, :fms, :lms, :ref)
+                            (:sid, :cid, :vu, :fp, :purl, :created_at, :created_at, 1, :ec, :bytes, :country, :device, :ip, :os, :browser, :fms, :lms, :ref, :active::boolean)
                         ON CONFLICT (session_id) DO UPDATE SET
                             last_at        = GREATEST(stats.rrweb_sessions.last_at, EXCLUDED.last_at),
                             chunk_count    = stats.rrweb_sessions.chunk_count + 1,
@@ -163,12 +164,16 @@ final class RrwebFlushCommand extends Command
                             browser        = COALESCE(stats.rrweb_sessions.browser, EXCLUDED.browser),
                             first_event_ms = LEAST(stats.rrweb_sessions.first_event_ms, EXCLUDED.first_event_ms),
                             last_event_ms  = GREATEST(stats.rrweb_sessions.last_event_ms, EXCLUDED.last_event_ms),
-                            referer        = COALESCE(stats.rrweb_sessions.referer, EXCLUDED.referer)
+                            referer        = COALESCE(stats.rrweb_sessions.referer, EXCLUDED.referer),
+                            has_interaction = CASE
+                                WHEN stats.rrweb_sessions.has_interaction IS TRUE OR EXCLUDED.has_interaction IS TRUE THEN true
+                                WHEN stats.rrweb_sessions.has_interaction IS NULL THEN NULL
+                                ELSE false END
                     SQL,
                     [
                         'sid' => $sid, 'cid' => $campaignId, 'vu' => $vu, 'fp' => $fp, 'purl' => $pageUrl, 'created_at' => $createdAt,
                         'ec' => $eventCount, 'bytes' => $bytes, 'country' => $country, 'device' => $device,
-                        'ip' => $ip, 'os' => $os, 'browser' => $browser, 'fms' => $firstMs, 'lms' => $lastMs, 'ref' => $ref,
+                        'ip' => $ip, 'os' => $os, 'browser' => $browser, 'fms' => $firstMs, 'lms' => $lastMs, 'ref' => $ref, 'active' => Interaction::exists($events) ? 'true' : 'false',
                     ],
                 );
             } catch (\Throwable $e) {

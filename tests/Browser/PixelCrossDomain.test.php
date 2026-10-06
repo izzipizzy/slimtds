@@ -23,22 +23,26 @@ $matrix = [
     ['lander' => 'd', 'campaign_slug' => 'ruonly', 'event' => 'engagement',  'button_text' => 'Fire engagement ping'],
 ];
 
-$pgDsn = getenv('TEST_PG_DSN') ?: 'pgsql:host=db;port=5432;dbname=slimtds';
-
-beforeAll(function () use ($pgDsn): void {
-    $pdo = new PDO($pgDsn, 'slimtds', 'slimtds', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-    $pdo->exec("DELETE FROM stats.pixel_events WHERE page_url LIKE 'https://lander-%.local%'");
+beforeAll(function (): void {
+    $pdo = browserPdo();
+    foreach (['demo01', 'mixab', 'ruonly'] as $slug) {
+        $stmt = $pdo->prepare("INSERT INTO core.campaigns (name, slug) VALUES (:name, :slug) ON CONFLICT (slug) DO NOTHING");
+        $stmt->execute(['name' => 'Browser pixel ' . $slug, 'slug' => $slug]);
+    }
+    $pdo->exec("DELETE FROM stats.pixel_events WHERE page_url LIKE 'https://lander-%.local%' OR page_url LIKE 'http://lander-%'");
 });
 
 foreach ($matrix as $case) {
-    test("lander-{$case['lander']}.local fires pageview + {$case['event']} into {$case['campaign_slug']}", function () use ($case, $pgDsn): void {
-        $pdo = new PDO($pgDsn, 'slimtds', 'slimtds', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    test("lander-{$case['lander']}.local fires pageview + {$case['event']} into {$case['campaign_slug']}", function () use ($case): void {
+        $pdo = browserPdo();
         $cid = (string)$pdo->query("SELECT id FROM core.campaigns WHERE slug = '{$case['campaign_slug']}'")->fetchColumn();
         expect($cid)->not->toBeEmpty();
 
+        $base = sprintf(getenv('BROWSER_LANDER_URL_PATTERN') ?: 'https://lander-%s.local', $case['lander']);
+
         // Land on home — pixel auto-fires pageview after fingerprintjs resolves.
         // Then click an in-page nav link so the next page's document.referrer is non-empty.
-        visit("https://lander-{$case['lander']}.local/")
+        visit($base . '/')
             ->wait(2)
             ->click($case['button_text'])
             ->wait(1)
@@ -46,6 +50,9 @@ foreach ($matrix as $case) {
             ->wait(2)
             ->click('Pricing')
             ->wait(2);
+
+        $container = (require dirname(__DIR__, 2) . '/config/di.php')();
+        $container->get(\App\Cron\Command\InboxFlushCommand::class)->tick();
 
         $stmt = $pdo->prepare(
             "SELECT event_name, page_url, referer
@@ -56,7 +63,7 @@ foreach ($matrix as $case) {
         );
         $stmt->execute([
             'cid'    => $cid,
-            'prefix' => "https://lander-{$case['lander']}.local%",
+            'prefix' => $base . '%',
         ]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -66,7 +73,7 @@ foreach ($matrix as $case) {
 
         $aboutRow = null;
         foreach ($rows as $r) {
-            expect($r['page_url'])->toStartWith("https://lander-{$case['lander']}.local/");
+            expect($r['page_url'])->toStartWith($base . '/');
             if ($aboutRow === null && $r['event_name'] === 'pageview' && str_ends_with($r['page_url'], '/about')) {
                 $aboutRow = $r;
             }
@@ -74,6 +81,6 @@ foreach ($matrix as $case) {
 
         // /about pageview must carry the home page as document.referrer
         expect($aboutRow)->not->toBeNull();
-        expect($aboutRow['referer'])->toBe("https://lander-{$case['lander']}.local/");
+        expect($aboutRow['referer'])->toBe($base . '/');
     });
 }

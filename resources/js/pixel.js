@@ -60,6 +60,37 @@ import { record } from 'rrweb'
     entryRef = document.referrer || ''
   }
 
+  // ── Test link ───────────────────────────────────────────────────────────
+  // Carry signed test-link parameters from the lander into tracked clicks.
+  var TEST_PARAMS = ['_t', '_geo', '_dbg']
+  var testQs = ''
+  try {
+    var here = new URLSearchParams(location.search)
+    if (here.get('_t')) {
+      var q = new URLSearchParams()
+      for (var ti = 0; ti < TEST_PARAMS.length; ti++) {
+        var tv = here.get(TEST_PARAMS[ti])
+        if (tv) q.set(TEST_PARAMS[ti], tv)
+      }
+      testQs = q.toString()
+      sessionStorage.setItem('slim_test', testQs)
+    } else {
+      testQs = sessionStorage.getItem('slim_test') || ''
+    }
+  } catch (_) {}
+
+  // The logged page URL must not carry the key into stats.pixel_events.
+  function pageUrl() {
+    if (!testQs) return location.href
+    try {
+      var u = new URL(location.href)
+      for (var j = 0; j < TEST_PARAMS.length; j++) u.searchParams.delete(TEST_PARAMS[j])
+      return u.href
+    } catch (_) {
+      return location.href
+    }
+  }
+
   // ── Endpoint URL ────────────────────────────────────────────────────────
   // Relative `p/event` (no leading slash) so the endpoint resolves next to
   // wherever p.js was served from. Two cases this handles:
@@ -72,6 +103,34 @@ import { record } from 'rrweb'
     eventEndpoint = new URL('p/event', base).href
   } catch (_) {
     eventEndpoint = 'p/event'
+  }
+
+  // ── Test link: lander buttons ───────────────────────────────────────────
+  // Lander buttons (/play/<button>/, or a direct link to the TDS) are how a
+  // visitor reaches the click engine. Without the key such a click would
+  // route as ordinary traffic, so in test mode the link is tagged at the
+  // last moment — on the gesture, which also covers buttons rendered later.
+  if (testQs) {
+    var tdsOrigin = ''
+    try { tdsOrigin = new URL(base).origin } catch (_) {}
+    var tagLink = function (ev) {
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null
+      if (!a) return
+      try {
+        var u = new URL(a.getAttribute('href'), location.href)
+        var toPlay = u.origin === location.origin && u.pathname.indexOf('/play/') === 0
+        // A proxied pixel (/a/p.js) shares the lander's origin — then only
+        // /play/ counts, or every internal link would be tagged.
+        var toTds = tdsOrigin !== location.origin && u.origin === tdsOrigin
+        if (!(toPlay || toTds) || u.searchParams.get('_t')) return
+        new URLSearchParams(testQs).forEach(function (v, k) { u.searchParams.set(k, v) })
+        a.href = u.href
+      } catch (_) {}
+    }
+    var TAG_EVENTS = ['mousedown', 'touchstart', 'keydown', 'click', 'auxclick']
+    for (var te = 0; te < TAG_EVENTS.length; te++) {
+      try { document.addEventListener(TAG_EVENTS[te], tagLink, true) } catch (_) {}
+    }
   }
 
   // ── Send helper ─────────────────────────────────────────────────────────
@@ -93,7 +152,7 @@ import { record } from 'rrweb'
   function track(eventName, props, fp) {
     var payload = {
       c: campaignId,
-      url: location.href,
+      url: pageUrl(),
       ref: document.referrer || null,
       eref: entryRef || null,
       ua: navigator.userAgent || null,

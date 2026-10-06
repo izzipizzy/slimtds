@@ -75,3 +75,29 @@ test('sessions show renders without fatal', function (): void {
     expect($resp->getStatusCode())->toBe(200);
     expect((string) $resp->getBody())->not->toBeEmpty();
 });
+
+
+test('activity badge and filter render on list and replay with sorting preserved', function (): void {
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = false, first_event_ms = 0, last_event_ms = 10000 WHERE session_id = :s', ['s' => $this->sid]);
+    $req = (new ServerRequestFactory())->createServerRequest('GET', '/admin/sessions')->withQueryParams(['activity' => 'inactive', 'min_dur' => '0']);
+    $body = (string)$this->ctrl->index($req, new Response(), $this->view)->getBody();
+    expect($body)->toContain('data-session-activity="inactive"', 'name="activity"', 'value="inactive" selected', 'activity=inactive');
+    $body = (string)$this->ctrl->show($req, new Response(), $this->view, $this->sid)->getBody();
+    expect($body)->toContain('data-session-activity="inactive"');
+});
+
+
+test('sessions default hides suspected bots and includes short active and unknown recordings', function (): void {
+    $req = (new ServerRequestFactory())->createServerRequest('GET', '/admin/sessions');
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = false, first_event_ms = 0, last_event_ms = 1000 WHERE session_id = :s', ['s' => $this->sid]);
+    $body = (string)$this->ctrl->index($req, new Response(), $this->view)->getBody();
+    expect($body)->not->toContain('data-session-activity="inactive"');
+    expect($body)->toContain('value="not_bot" selected', 'value="0" selected');
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = true WHERE session_id = :s', ['s' => $this->sid]);
+    expect((string)$this->ctrl->index($req, new Response(), $this->view)->getBody())->toContain('data-session-activity="active"');
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = NULL WHERE session_id = :s', ['s' => $this->sid]);
+    expect((string)$this->ctrl->index($req, new Response(), $this->view)->getBody())->toContain('data-session-activity="unknown"');
+    $req = $req->withQueryParams(['activity' => 'all']);
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = false WHERE session_id = :s', ['s' => $this->sid]);
+    expect((string)$this->ctrl->index($req, new Response(), $this->view)->getBody())->toContain('data-session-activity="inactive"', 'value="all" selected');
+});

@@ -60,7 +60,7 @@ final class PixelColumnPreferences
         return $out;
     }
 
-    /** @param list<string> $orderedVisible */
+    /** @param array<mixed> $orderedVisible */
     public function setVisible(array $orderedVisible): void
     {
         $clean = array_values(array_filter(

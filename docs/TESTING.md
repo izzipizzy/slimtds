@@ -6,10 +6,10 @@ slimTDS tests run against an isolated `slimtds_test` database (separate Postgres
 
 | Suite | Count | What it covers | DB? |
 |---|---:|---|---|
-| Unit | 38 | Pure functions: FilterCompiler, OfferPicker, MacroExpander, CampaignIdGenerator, etc. | no |
-| Integration | 182 | DB-backed: repositories, controllers (PSR-7), engine pipeline, postback, pixel events, rate-limiter, sessions | yes (db-test) |
-| Arch | 7 | pest-plugin-arch invariants: layer boundaries, naming, strict_types, no `dd`/`var_dump` | no |
-| Browser | opt-in | Pest 4 + Playwright Chromium against the running dev stack | no (talks to live stack) |
+| Unit | 195 | Pure functions: FilterCompiler, OfferPicker, MacroExpander, CampaignIdGenerator, etc. | no |
+| Integration | 422 | DB-backed: repositories, controllers (PSR-7), engine pipeline, postback, pixel events, rate-limiter, sessions | yes (db-test) |
+| Arch | 9 | pest-plugin-arch invariants: layer boundaries, naming, strict_types, no `dd`/`var_dump` | no |
+| Browser | 12 (opt-in) | Pest 5 + Playwright Chromium against the running dev stack | no (talks to live stack) |
 
 ## Quick start
 
@@ -34,16 +34,24 @@ docker compose exec -e 'DB_DSN=pgsql:host=db-test;port=5432;dbname=slimtds_test'
 
 ## Browser tests
 
-The browser suite is gated by `BROWSER_TESTS=1` and needs Playwright Chromium. There are two ways to run it:
+The browser suite is gated by `BROWSER_TESTS=1` and needs Playwright Chromium. Set `BROWSER_BASE_URL` and `TEST_PG_DSN` explicitly. The target app must use that same disposable database: browser fixtures delete campaigns/offers/clicks and reset administrator passwords. Never point these tests at the development database restored from production. Optional `BROWSER_LANDER_URL_PATTERN` selects the four landers (e.g. `http://lander-%s`). Browser runs without explicit targets fail before fixture cleanup.
 
-### Option A — Playwright in the app container
+The 2026-10-04 validation used a Debian PHP 8.5 test container with Node 24, Playwright 1.63 Chromium and its system dependencies, an isolated app attached to `db-test`, and four nginx landers. Alpine runtime images do not supply Playwright's supported glibc browser dependencies. There are two ways to run browser tooling:
+
+### Option A — supported Docker browser tooling
 
 ```bash
-docker compose exec app sh -lc 'npx playwright install chromium'
-make test-browser
+docker build -f docker/Dockerfile.browser-tests -t slimtds:browser-tests .
+# The target app must be attached to db-test and the landers must use its pixel URL.
+docker run --rm --init --network YOUR_TEST_NETWORK \
+  -e BROWSER_TESTS=1 -e BROWSER_BASE_URL=http://app-test \
+  -e TEST_PG_DSN='pgsql:host=db-test;port=5432;dbname=slimtds_test' \
+  -e BROWSER_LANDER_URL_PATTERN='http://lander-%s' \
+  -v "$PWD:/app" -w /app slimtds:browser-tests \
+  php vendor/bin/pest --testsuite=Browser
 ```
 
-This installs `~150 MB` of Chromium into the container's home dir.
+This image includes Chromium, Node, PHP extensions and the supported browser system libraries. The checkout must already have Composer dev dependencies and Bun dependencies installed.
 
 ### Option B — Playwright on the host (recommended for development)
 

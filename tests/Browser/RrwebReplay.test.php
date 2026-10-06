@@ -2,50 +2,46 @@
 
 declare(strict_types=1);
 
-// rrweb session record→replay e2e test (opt-in, browser).
-//
-// Verifies the full pipeline: a seeded campaign lander with p.js?c=<slug> (rate=100)
-// records an rrweb session; pagehide flushes it via sendBeacon; `rrweb:flush` drains
-// the inbox; stats.rrweb_sessions has a row; /admin/sessions/{sid}/events returns ≥ 2 events.
-//
-// Enable with:  BROWSER_TESTS=1 pest --filter=RrwebReplay
-// Requires the dev stack to be up (make up) with assets built (make build-assets)
-// and migrations applied (make migrate + make seed).
-// Follow tests/Browser/PixelCrossDomain.test.php for the Playwright driver bootstrap.
-
 if (getenv('BROWSER_TESTS') !== '1') {
     test('rrweb replay (browser, opt-in) skipped', function () {})->skip('set BROWSER_TESTS=1');
     return;
 }
 
 test('a recorded session produces replayable events', function (): void {
-    // TODO: fill in concrete Playwright steps following tests/Browser/PixelCrossDomain.test.php.
-    //
-    // 1. Resolve a seeded campaign slug (e.g. 'demo01') and its lander URL that
-    //    embeds p.js?c=<slug> with rrweb rate=100 so recording is guaranteed.
-    //
-    // 2. Use the Playwright driver (same bootstrap as PixelCrossDomain.test.php):
-    //      visit('https://<lander>.local/')
-    //          ->wait(2)           // let rrweb initialise
-    //          ->scroll(0, 300)    // produce scroll events
-    //          ->click('...')      // produce interaction events
-    //          ->wait(1);
-    //
-    // 3. Trigger pagehide to flush the rrweb event buffer via sendBeacon:
-    //      ->evaluate('window.dispatchEvent(new Event("pagehide"))');
-    //
-    // 4. Run the console command to drain the inbox:
-    //      shell_exec('docker compose exec app bin/console rrweb:flush');
-    //
-    // 5. Assert a session row exists in stats.rrweb_sessions:
-    //      $pdo = new PDO(...);
-    //      $sid = $pdo->query("SELECT id FROM stats.rrweb_sessions ORDER BY created_at DESC LIMIT 1")->fetchColumn();
-    //      expect($sid)->not->toBeFalsy();
-    //
-    // 6. Assert the admin events endpoint returns ≥ 2 events:
-    //      $resp = file_get_contents("http://localhost/admin/sessions/{$sid}/events");
-    //      $events = json_decode($resp, true);
-    //      expect(count($events))->toBeGreaterThanOrEqual(2);
+    $pdo = browserPdo();
+    $pdo->exec("INSERT INTO core.campaigns (name, slug) VALUES ('Browser recording', 'demo01') ON CONFLICT (slug) DO NOTHING");
+    $pdo->exec("INSERT INTO core.settings (key, value) VALUES ('rrweb_sample_rate', '100') ON CONFLICT (key) DO UPDATE SET value = '100'");
+    $base = sprintf(getenv('BROWSER_LANDER_URL_PATTERN') ?: 'https://lander-%s.local', 'a');
+    $page = visit($base . '/')->wait(2)->click('Fire test purchase')->wait(1);
+    $sid = $page->script('sessionStorage.getItem("slim_sid")');
+    expect($sid)->toBeUuid();
+    $page->script('window.dispatchEvent(new Event("pagehide"))');
+    $page->wait(1);
 
-    expect(true)->toBeTrue(); // placeholder — replace with steps above
+    $container = (require dirname(__DIR__, 2) . '/config/di.php')();
+    $container->get(\App\Cron\Command\RrwebFlushCommand::class)->drainOnce();
+    $stmt = $pdo->prepare('SELECT event_count FROM stats.rrweb_sessions WHERE session_id = :id');
+    $stmt->execute(['id' => $sid]);
+    expect((int) $stmt->fetchColumn())->toBeGreaterThanOrEqual(2);
+    $activity = $pdo->prepare('SELECT has_interaction FROM stats.rrweb_sessions WHERE session_id = :id');
+    $activity->execute(['id' => $sid]);
+    expect($activity->fetchColumn())->toBeTrue();
+    $events = $container->get(\App\Admin\Repository\RrwebSessionRepository::class)->events($sid);
+    expect(array_column($events, 'type'))->toContain(2, 4);
+
+    browserAdmin('replay-browser-password');
+    $admin = visit(browserUrl('/admin/login'), ['locale' => 'ru-RU']);
+    $admin->fill('login', 'admin')->fill('password', 'replay-browser-password')->press('button[type=submit]');
+    $admin->navigate(browserUrl('/admin/sessions/' . $sid));
+    $admin->assertVisible('.session-player-toggle')->assertPresent('.session-player-viewport iframe');
+    $admin->click('button[aria-label="Пауза"]')->assertAttribute('.session-player-toggle', 'aria-label', 'Смотреть');
+    $admin->click('button[data-speed="2"]')->assertAttribute('button[data-speed="2"]', 'aria-pressed', 'true');
+    $admin->script('const seek = document.querySelector(".session-player-timeline"); seek.value = "500"; seek.dispatchEvent(new Event("input")); seek.dispatchEvent(new Event("change"));');
+    $admin->assertScript('document.querySelector(".session-player-timeline").value', '500');
+    $admin->assertPresent('[data-session-activity="active"]');
+    $admin->navigate(browserUrl('/admin/sessions?activity=active&min_dur=0'));
+    $admin->assertPresent('a[href="/admin/sessions/' . $sid . '"]')->assertPresent('[data-session-activity="active"]');
+    $admin->navigate(browserUrl('/admin/sessions?activity=inactive&min_dur=0'));
+    $admin->assertMissing('a[href="/admin/sessions/' . $sid . '"]');
+    $admin->assertNoJavaScriptErrors();
 })->group('browser');

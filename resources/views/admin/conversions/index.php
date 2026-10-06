@@ -6,8 +6,26 @@
 /** @var array<string,mixed> $filters */
 /** @var array{approved:array{count:int,payout:string}, pending:array{count:int,payout:string}, hold:array{count:int,payout:string}, rejected:array{count:int,payout:string}} $breakdown */
 /** @var list<\App\Admin\Repository\Campaign> $campaigns */
+/** @var string $range_from */
+/** @var string $range_to */
 ?>
 <?php
+// One-click filter URLs preserving currently active filters
+$cvFilterFields = ['campaign_id', 'status', 'since', 'from', 'to', 'range'];
+$filterUrl = function (array $overrides) use ($filters, $cvFilterFields): string {
+    $q = [];
+    foreach ($cvFilterFields as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v === null || $v === '') continue;
+        $q[$k] = (string)$v;
+    }
+    foreach ($overrides as $k => $v) {
+        if ($v === null || $v === '') { unset($q[$k]); continue; }
+        $q[$k] = (string)$v;
+    }
+    return url('/admin/conversions' . ($q ? '?' . http_build_query($q) : ''));
+};
+
 $title = t('conversions.title');
 $count = (int)$total;
 require __DIR__ . '/../../_partials/page-header.php';
@@ -16,7 +34,7 @@ require __DIR__ . '/../../_partials/page-header.php';
 <!-- Status breakdown — clickable cards -->
 <div class="kpi-grid-4" style="margin-bottom:18px">
     <?php foreach (['approved', 'pending', 'hold', 'rejected'] as $st): ?>
-        <a class="kpi-card" href="<?= e(url('/admin/conversions?' . http_build_query(array_filter(['campaign_id' => $filters['campaign_id'] ?? null, 'status' => $st], fn ($v) => $v !== null && $v !== '')))) ?>">
+        <a class="kpi-card" href="<?= e($filterUrl(['status' => $st])) ?>">
             <span class="kpi-eyebrow"><?= e(t('conversions.eyebrow.' . $st)) ?></span>
             <div class="kpi-value"><?= (int)$breakdown[$st]['count'] ?></div>
             <div class="kpi-meta" style="font-family:var(--font-mono)">$<?= e($breakdown[$st]['payout']) ?></div>
@@ -43,6 +61,11 @@ require __DIR__ . '/../../_partials/page-header.php';
             <?php endforeach; ?>
         </select>
     </div>
+    <?php
+    $rangeDefault = '30d';
+    $rangeUrl = static fn (string $preset): string => $filterUrl(['range' => $preset, 'from' => null, 'to' => null, 'since' => null]);
+    require __DIR__ . '/../../_partials/date-range.php';
+    ?>
     <button type="submit" class="btn-secondary" style="font-size:0.8rem;height:32px;align-self:flex-end"><?= e(t('conversions.apply')) ?></button>
 </form>
 
@@ -102,6 +125,10 @@ require __DIR__ . '/../../_partials/page-header.php';
     $extraQuery = array_filter([
         'campaign_id' => $filters['campaign_id'] ?? null,
         'status'      => $filters['status']      ?? null,
+        'since'       => $filters['since']       ?? null,
+        'from'        => $filters['from']        ?? null,
+        'to'          => $filters['to']          ?? null,
+        'range'       => $filters['range']       ?? null,
     ], fn ($v) => $v !== null && $v !== '');
     require __DIR__ . '/../../_partials/pagination.php';
     ?>

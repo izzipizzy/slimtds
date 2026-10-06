@@ -44,3 +44,11 @@ arch('repositories live in Repository namespaces')
         'App\Admin\Repository\Offer',
         'App\Admin\Repository\Flow',
     ]);
+
+arch('mcp reads through repositories and shared code only')
+    ->expect('App\Mcp')
+    ->not->toUse(['App\Admin\Controller', 'App\Admin\Middleware', 'App\Admin\Form', 'App\Engine', 'App\Pixel', 'App\Postback', 'App\Cron']);
+
+arch('only the settings ui reaches into mcp')
+    ->expect('App\Mcp')
+    ->toOnlyBeUsedIn(['App\Mcp', 'App\Admin\Controller']);

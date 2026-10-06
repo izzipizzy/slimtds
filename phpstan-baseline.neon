@@ -46,11 +46,6 @@ parameters:
 			path: src/Engine/FilterCompiler.php
 
 		-
-			message: "#^Property App\\\\Engine\\\\GeoLookup\\:\\:\\$countryReader is never read, only written\\.$#"
-			count: 1
-			path: src/Engine/GeoLookup.php
-
-		-
 			message: "#^Offset 'offer_id' on array\\{offer_id\\: string, weight\\: int\\} on left side of \\?\\? always exists and is not nullable\\.$#"
 			count: 1
 			path: src/Engine/OfferPicker.php
@@ -69,16 +64,6 @@ parameters:
 			message: "#^Ternary operator condition is always true\\.$#"
 			count: 1
 			path: src/Pixel/PixelEventRepository.php
-
-		-
-			message: "#^Function flash\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Shared/View/Helpers.php
-
-		-
-			message: "#^Function t\\(\\) has parameter \\$params with no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Shared/View/Helpers.php
 
 		-
 			message: "#^Function tn\\(\\) has parameter \\$params with no value type specified in iterable type array\\.$#"

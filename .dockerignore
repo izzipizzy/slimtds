@@ -23,3 +23,9 @@ var/cache
 # and a host vendor/ (which is how tests are run locally) would overwrite it
 # through `COPY . ./`, shipping pest/phpstan/faker into production images.
 vendor
+
+# Local agent state and generated analysis are not runtime assets.
+.claude
+graphify-out
+.phpunit.cache
+tests/Browser/Screenshots

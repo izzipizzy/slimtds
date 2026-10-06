@@ -192,6 +192,7 @@ final class FlowController
             'campaign' => $campaign,
             'flow' => $flow,
             'offers' => $offers,
+            'app_url' => rtrim((string)($_ENV['APP_URL'] ?? 'https://slimtds.local'), '/'),
             'errors' => $_SESSION['_errors'] ?? [],
         ]);
         unset($_SESSION['_errors']);

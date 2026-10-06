@@ -4,28 +4,28 @@
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
-        "php": "^8.4",
-        "geoip2/geoip2": "^3.0",
-        "mobiledetect/mobiledetectlib": "^4.8",
-        "php-di/php-di": "^7.0",
-        "php-di/slim-bridge": "^3.4",
-        "ramsey/uuid": "^4.7",
-        "respect/validation": "^2.3",
-        "robmorgan/phinx": "^0.16",
-        "slim/psr7": "^1.7",
-        "slim/slim": "^4.14",
-        "symfony/console": "^7.1",
-        "symfony/process": "^7.1",
-        "symfony/translation": "^7.1",
-        "symfony/yaml": "^7.1",
-        "vlucas/phpdotenv": "^5.6"
+        "php": "^8.5",
+        "geoip2/geoip2": "^3.4",
+        "mobiledetect/mobiledetectlib": "^4.11",
+        "php-di/php-di": "^7.1",
+        "php-di/slim-bridge": "^3.4.1",
+        "ramsey/uuid": "^4.9.4",
+        "respect/validation": "^3.1",
+        "robmorgan/phinx": "^0.16.12",
+        "slim/psr7": "^1.8",
+        "slim/slim": "^4.15.3",
+        "symfony/console": "^8.1",
+        "symfony/process": "^8.1",
+        "symfony/translation": "^8.1",
+        "symfony/yaml": "^8.1",
+        "vlucas/phpdotenv": "^5.7"
     },
     "require-dev": {
-        "pestphp/pest": "^4.0",
-        "pestphp/pest-plugin-arch": "^4.0",
-        "pestphp/pest-plugin-browser": "^4.0",
-        "phpstan/phpstan": "^1.12",
-        "fakerphp/faker": "^1.23"
+        "pestphp/pest": "^5.3",
+        "pestphp/pest-plugin-arch": "^5.0",
+        "pestphp/pest-plugin-browser": "^5.1",
+        "phpstan/phpstan": "^2.2",
+        "fakerphp/faker": "^1.24"
     },
     "autoload": {
         "psr-4": {

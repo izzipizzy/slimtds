@@ -7,13 +7,14 @@
         "watch": "bun --watch scripts/build.ts"
     },
     "devDependencies": {
-        "@tailwindcss/cli": "^4.0.0",
-        "tailwindcss": "^4.0.0",
-        "alpinejs": "^3.14.0",
-        "@fingerprintjs/fingerprintjs": "^4.5.0",
-        "echarts": "^5.5.0"
+        "@fingerprintjs/fingerprintjs": "5.2.0",
+        "@tailwindcss/cli": "4.3.3",
+        "alpinejs": "3.17.4",
+        "echarts": "6.1.0",
+        "playwright": "1.63.0",
+        "tailwindcss": "4.3.3"
     },
     "dependencies": {
-        "rrweb": "^2.0.0-alpha.18"
+        "rrweb": "2.1.7"
     }
 }

@@ -208,7 +208,7 @@ final class SeedStatsCommand extends Command
                         'oid' => $offerId,
                         'vid' => $visitor,
                         'ip' => $this->randomIp(),
-                        'country' => $country,
+                        'country' => strtolower($country), // as GeoLookup stores it — the country filters match on that
                         'device' => $device,
                         'os' => $this->osFor($device),
                         'browser' => $this->browserFor($device),
@@ -356,7 +356,7 @@ final class SeedStatsCommand extends Command
                     'vid' => $visitors[mt_rand(0, count($visitors) - 1)],
                     'event' => $event,
                     'page' => $pages[mt_rand(0, count($pages) - 1)],
-                    'country' => $country,
+                    'country' => strtolower($country),
                     'lang' => $this->langFor($country),
                     'is_bot' => $isBot ? 'true' : 'false',
                     'ts' => $this->randomTs($now)->format('Y-m-d H:i:sP'),

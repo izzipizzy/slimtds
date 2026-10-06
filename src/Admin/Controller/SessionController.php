@@ -6,6 +6,7 @@ namespace App\Admin\Controller;
 
 use App\Admin\Repository\CampaignRepository;
 use App\Admin\Repository\RrwebSessionRepository;
+use App\Shared\Time\DateRange;
 use App\Shared\View\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -24,6 +25,10 @@ final class SessionController
         $q = $request->getQueryParams();
         $str = static fn (string $k): ?string => isset($q[$k]) && is_string($q[$k]) && $q[$k] !== '' ? $q[$k] : null;
 
+        // Sessions have no default window (retention bounds the table), so a
+        // lone `to` needs no invented `from`.
+        $range = DateRange::fromQuery($q, null);
+
         $filters = [
             'campaign_id' => $str('campaign'),
             'fp'          => $str('fp'),
@@ -33,8 +38,12 @@ final class SessionController
             'os'          => $str('os'),
             'device'      => $str('device'),
             'source'      => $str('source'),
-            // Default: hide sessions shorter than 3s. 'min_dur=0' shows all.
-            'min_dur'     => isset($q['min_dur']) && is_numeric($q['min_dur']) ? (string)max(0, (int)$q['min_dur']) : '3',
+            'activity'    => in_array($str('activity'), ['not_bot', 'all', 'active', 'inactive', 'unknown'], true) ? $str('activity') : 'not_bot',
+            'from'        => $range->from,
+            'to'          => $range->to,
+            'range'       => $range->preset,
+            // Default: all durations; the activity filter hides suspected bots.
+            'min_dur'     => isset($q['min_dur']) && is_numeric($q['min_dur']) ? (string)max(0, (int)$q['min_dur']) : '0',
         ];
         $page = isset($q['page']) && is_numeric($q['page']) ? max(1, (int)$q['page']) : 1;
         $sort = (($q['sort'] ?? '') === 'duration') ? 'duration' : 'started';
@@ -63,7 +72,10 @@ final class SessionController
                 'per_page'    => self::PER_PAGE,
                 'sort'        => $sort,
                 'dir'         => $dir,
-                'filters'     => $filters,
+                'filters'     => $range->forView($filters),
+                // Unset = everything on record, so the inputs show exactly that.
+                'range_from'  => $range->from ?? $this->sessions->earliestDay() ?? DateRange::today(),
+                'range_to'    => $range->to ?? DateRange::today(),
                 'campaigns'   => $this->campaigns->page(1, 1000),
                 'opt_domains' => $this->sessions->distinct('domain'),
                 'opt_country' => $this->sessions->distinct('country'),

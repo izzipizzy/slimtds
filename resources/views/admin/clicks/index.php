@@ -22,7 +22,7 @@ $flag = function (?string $cc): string {
 // Build a /admin/clicks URL that preserves currently active filters but
 // applies the given override(s). Used to make every cell value a one-click
 // shortcut to filter the list to that value.
-$filterFields = ['campaign_id', 'country', 'device', 'bot_view', 'is_uniq', 'is_trash', 'since', 'search', 'entry_ref', 'fp_js', 'fp_js_has'];
+$filterFields = ['campaign_id', 'country', 'device', 'bot_view', 'is_uniq', 'is_trash', 'since', 'from', 'to', 'range', 'search', 'entry_ref', 'fp_js', 'fp_js_has'];
 $filterUrl = function (array $overrides) use ($filters, $filterFields): string {
     $q = [];
     foreach ($filterFields as $k) {
@@ -198,11 +198,35 @@ require __DIR__ . '/../../_partials/page-header.php';
 <!-- 48h timeline — last 48 hours from current hour, reflects active filters -->
 <div style="margin-bottom:18px;padding:14px 16px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-surface)">
     <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-        <span class="eyebrow"><?= e(t('clicks.chart.last_48h')) ?></span>
-        <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--color-faint)"><?= e(t('clicks.chart.hourly_filtered')) ?></span>
+        <span class="eyebrow" style="font-variant-numeric:tabular-nums"><?= e(date('d.m.Y', (int)strtotime((string)($range_from ?? 'today')))) ?> – <?= e(date('d.m.Y', (int)strtotime((string)($range_to ?? 'today')))) ?></span>
+        <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--color-faint)"><?= e(t(($timeline_step ?? 'hour') === 'day' ? 'clicks.chart.daily_filtered' : 'clicks.chart.hourly_filtered')) ?></span>
     </div>
     <div x-data="clicksTimeline({ points: <?= e(json_encode($timeline, JSON_UNESCAPED_SLASHES)) ?> })" style="width:100%;height:180px"></div>
 </div>
+
+<?php if (!empty($summary)): ?>
+<!-- KPI cards — same period and filters as the list -->
+<?php $cr = $summary['clicks'] > 0 ? round($summary['approved'] / $summary['clicks'] * 100, 2) : 0.0; ?>
+<div class="kpi-grid-4" style="margin-bottom:18px">
+    <div class="kpi-card">
+        <span class="kpi-eyebrow"><?= e(t('clicks.kpi.clicks')) ?></span>
+        <div class="kpi-value"><?= (int)$summary['clicks'] ?></div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-eyebrow"><?= e(t('clicks.kpi.unique_visitors')) ?></span>
+        <div class="kpi-value"><?= (int)$summary['uniq_visitors'] ?></div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-eyebrow"><?= e(t('clicks.kpi.unique_fp')) ?></span>
+        <div class="kpi-value"><?= (int)$summary['uniq_fp'] ?></div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-eyebrow"><?= e(t('clicks.kpi.conversions')) ?></span>
+        <div class="kpi-value"><?= (int)$summary['conversions'] ?></div>
+        <div class="kpi-meta" style="font-family:var(--font-mono)"><?= e(t('clicks.kpi.approved')) ?> <?= (int)$summary['approved'] ?> · CR <?= e(number_format($cr, 2)) ?>% · $<?= e(number_format((float)$summary['payout'], 2)) ?></div>
+    </div>
+</div>
+<?php endif; ?>
 
 <form method="get" class="filter-bar">
     <div class="filter-field">
@@ -216,6 +240,11 @@ require __DIR__ . '/../../_partials/page-header.php';
             <?php endforeach; ?>
         </select>
     </div>
+    <?php
+    $rangeDefault = '7d';
+    $rangeUrl = static fn (string $preset): string => $filterUrl(['range' => $preset, 'from' => null, 'to' => null, 'since' => null]);
+    require __DIR__ . '/../../_partials/date-range.php';
+    ?>
     <div class="filter-field">
         <label class="filter-label"><?= e(t('clicks.filter.country')) ?></label>
         <input type="text" name="country" value="<?= e((string)($filters['country'] ?? '')) ?>" placeholder="<?= e(t('clicks.filter.country_ph')) ?>" class="input-sm input-mono" style="width:110px">
@@ -352,19 +381,23 @@ require __DIR__ . '/../../_partials/page-header.php';
             </div>
 
             <footer class="drawer-footer">
-                <form method="post" action="<?= e(url('/admin/clicks/columns/reset')) ?>" style="margin-right:auto">
-                    <?= csrf_field($csrf_token) ?>
-                    <button type="submit" class="btn-ghost" style="font-size:0.8rem"><?= e(t('clicks.columns_reset')) ?></button>
-                </form>
+                <!-- The drawer sits inside the GET filter form, and forms cannot
+                     nest: these controls point at sibling POST forms below via
+                     form="", so neither they nor a CSRF token join the filters. -->
+                <button type="submit" form="clicks-columns-reset-form" class="btn-ghost" style="font-size:0.8rem;margin-right:auto"><?= e(t('clicks.columns_reset')) ?></button>
                 <button type="button" class="btn-secondary" @click="open = false" style="font-size:0.8rem"><?= e(t('clicks.cancel')) ?></button>
-                <form method="post" action="<?= e(url('/admin/clicks/columns')) ?>">
-                    <?= csrf_field($csrf_token) ?>
-                    <input type="hidden" name="columns" :value="JSON.stringify(visibleKeys())">
-                    <button type="submit" class="btn" style="font-size:0.8rem"><?= e(t('clicks.columns_save')) ?></button>
-                </form>
+                <input type="hidden" name="columns" form="clicks-columns-save-form" :value="JSON.stringify(visibleKeys())">
+                <button type="submit" form="clicks-columns-save-form" class="btn" style="font-size:0.8rem"><?= e(t('clicks.columns_save')) ?></button>
             </footer>
         </aside>
     </div>
+</form>
+
+<form id="clicks-columns-reset-form" method="post" action="<?= e(url('/admin/clicks/columns/reset')) ?>" style="display:none">
+    <?= csrf_field($csrf_token) ?>
+</form>
+<form id="clicks-columns-save-form" method="post" action="<?= e(url('/admin/clicks/columns')) ?>" style="display:none">
+    <?= csrf_field($csrf_token) ?>
 </form>
 
 <?php
@@ -390,6 +423,33 @@ $saveableView = ['is_trash', 'bot_view', 'search', 'entry_ref', 'fp_js_has'];
     require __DIR__ . '/../../_partials/empty-state.php';
     ?>
 <?php else: ?>
+    <?php
+    // Top lists — same markup as /admin/pixel.
+    $topList = static function (string $title, array $rows): void {
+        $max = max(array_map(static fn (array $r): int => (int)$r['clicks'], $rows) ?: [1]); ?>
+        <div style="padding:14px 16px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-surface)">
+            <div class="eyebrow" style="margin-bottom:10px"><?= e($title) ?></div>
+            <?php foreach ($rows as $i => $r): ?>
+                <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-family:var(--font-sans);font-size:0.82rem">
+                    <span style="font-family:var(--font-mono);color:var(--color-faintest);font-size:0.7rem;min-width:14px;text-align:right"><?= ($i + 1) ?></span>
+                    <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="<?= e((string)$r['label']) ?>"><?= e((string)$r['label']) ?></span>
+                    <div style="width:80px;height:4px;background:var(--color-stone-100);border-radius:2px;overflow:hidden">
+                        <div style="width:<?= max(8, (int)((int)$r['clicks'] / $max * 100)) ?>%;height:100%;background:var(--color-terra-400)"></div>
+                    </div>
+                    <span style="font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:0.78rem;color:var(--color-muted);min-width:32px;text-align:right"><?= (int)$r['clicks'] ?></span>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php };
+    $topLanders = $topLanders ?? [];
+    $topOffers = $topOffers ?? [];
+    ?>
+    <?php if ($topLanders !== [] || $topOffers !== []): ?>
+    <div class="adapt-stack" style="display:grid;grid-template-columns:<?= $topLanders !== [] && $topOffers !== [] ? '1fr 1fr' : '1fr' ?>;gap:12px;margin-bottom:18px">
+        <?php if ($topLanders !== []) $topList(t('clicks.top_landers'), $topLanders); ?>
+        <?php if ($topOffers !== []) $topList(t('clicks.top_offers'), $topOffers); ?>
+    </div>
+    <?php endif; ?>
     <div class="tbl-wrap">
         <div class="tbl-scroll">
             <table class="tbl">
@@ -545,6 +605,9 @@ $saveableView = ['is_trash', 'bot_view', 'search', 'entry_ref', 'fp_js_has'];
         'entry_ref'   => $filters['entry_ref'] ?? null,
         'fp_js'       => $filters['fp_js'] ?? null,
         'fp_js_has'   => $filters['fp_js_has'] ?? null,
+        'from'        => $filters['from'] ?? null,
+        'to'          => $filters['to'] ?? null,
+        'range'       => $filters['range'] ?? null,
     ], fn ($v) => $v !== null && $v !== '');
     require __DIR__ . '/../../_partials/pagination.php';
     ?>

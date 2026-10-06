@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 use App\Admin\Repository\SettingsRepository;
+use App\Mcp\ApiKeyService;
 use App\Shared\Db\Connection;
 use App\Shared\Notification\NotificationRegistry;
 use App\Shared\Referer\SearchEngine;
@@ -31,6 +32,7 @@ final class SettingsController
         private readonly Connection $db,
         private readonly NotificationRegistry $notifications,
         private readonly TelegramNotifier $tg,
+        private readonly ApiKeyService $mcpKeys,
     ) {}
 
     public function index(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
@@ -90,6 +92,17 @@ final class SettingsController
              LIMIT 50"
         );
 
+        // The freshly generated key is shown on exactly one render, and only
+        // within five minutes of being generated (see
+        // McpSettingsController::generate()) — the park is unconditionally
+        // cleared either way so it never lingers in the session past this
+        // request.
+        $park = $_SESSION['mcp_new_key'] ?? null;
+        unset($_SESSION['mcp_new_key']);
+        $mcpNewKey = (is_array($park) && is_string($park['key'] ?? null) && is_int($park['exp'] ?? null) && $park['exp'] > time())
+            ? $park['key']
+            : null;
+
         $values = $this->repo->all();
         $data = array_merge(
             $view->withRequestContext($request),
@@ -107,9 +120,17 @@ final class SettingsController
                 'notif_defs'    => $this->notifications->definitions(),
                 'notif_engines' => SearchEngine::keys(),
                 'tg_configured' => $this->tg->isConfigured(),
+                'mcp_status'    => $this->mcpKeys->status(),
+                'mcp_full_ip'   => $this->mcpKeys->fullIp(),
+                'mcp_new_key'   => $mcpNewKey,
+                'mcp_origin'    => rtrim((string)($_ENV['APP_URL'] ?? 'https://slimtds.local'), '/'),
             ],
         );
-        return $view->respond($response, 'admin/settings/index', $data);
+        $resp = $view->respond($response, 'admin/settings/index', $data);
+        // Only the render that actually carries the one-time plaintext key
+        // gets no-store, so back/forward cache can't redisplay it; every
+        // other admin page keeps its normal caching.
+        return $mcpNewKey !== null ? $resp->withHeader('Cache-Control', 'no-store') : $resp;
     }
 
     /**

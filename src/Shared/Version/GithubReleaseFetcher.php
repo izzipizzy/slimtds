@@ -59,10 +59,9 @@ final class GithubReleaseFetcher implements ReleaseFetcher
 
         try {
             $body = stream_get_contents($stream, self::MAX_BYTES + 1);
-            // PHP populates $http_response_header in the local scope once the
-            // stream is open; we only get here after a successful fopen.
+            // Capture headers from this completed stream request.
             /** @var list<string> $responseHeaders */
-            $responseHeaders = $http_response_header;
+            $responseHeaders = http_get_last_response_headers() ?? [];
         } finally {
             fclose($stream);
         }

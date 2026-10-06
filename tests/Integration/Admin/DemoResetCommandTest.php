@@ -41,16 +41,16 @@ beforeEach(function (): void {
 
     $app = new Application();
     $demoReset = new DemoResetCommand($this->db);
-    $app->add($demoReset);
-    $app->add(new DbSeedCommand(
+    $app->addCommand($demoReset);
+    $app->addCommand(new DbSeedCommand(
         $this->db,
         new CampaignRepository($this->db, new CampaignIdGenerator()),
         new OfferRepository($this->db),
         new FlowRepository($this->db),
     ));
-    $app->add(new SeedStatsCommand($this->db, new Partitions($pdo), new StatsRepository($this->db)));
-    $app->add(new AdminInitCommand($pdo, $hasher));
-    $app->add(new AdminSetPasswordCommand($pdo, $hasher));
+    $app->addCommand(new SeedStatsCommand($this->db, new Partitions($pdo), new StatsRepository($this->db)));
+    $app->addCommand(new AdminInitCommand($pdo, $hasher));
+    $app->addCommand(new AdminSetPasswordCommand($pdo, $hasher));
     $this->tester = new CommandTester($demoReset);
 });
 

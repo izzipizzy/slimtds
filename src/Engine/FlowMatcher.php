@@ -6,6 +6,7 @@ namespace App\Engine;
 
 use App\Admin\Repository\Flow;
 use App\Admin\Repository\FlowRepository;
+use App\Shared\TestLink;
 
 final class FlowMatcher
 {
@@ -26,6 +27,22 @@ final class FlowMatcher
             $predicate = $this->compiler->compile($flow->filters);
             if ($predicate($ctx)) {
                 $ctx->matchedFlowId = $flow->id;
+                return $flow;
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * The flow a test link points at, active or not, filters ignored. A
+     * campaign holds a handful of flows, so recomputing each key is cheaper
+     * than any index — and it only runs when a request carries `_t` at all.
+     */
+    public function forTestLink(string $campaignId, TestLink $link): ?Flow
+    {
+        foreach ($this->cachedFlows($campaignId) as $flow) {
+            if ($link->isFlow($flow->id)) {
                 return $flow;
             }
         }

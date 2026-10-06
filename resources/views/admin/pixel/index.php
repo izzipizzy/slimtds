@@ -7,7 +7,8 @@
 /** @var array{events:int,uniq_visitors:int,uniq_fp:int,distinct_event_types:int} $summary */
 /** @var list<array{host:string,events:int}> $topDomains */
 /** @var list<array{event_name:string,events:int}> $topEventNames */
-/** @var string $sinceDisplay */
+/** @var string $range_from */
+/** @var string $range_to */
 /** @var list<\App\Admin\Repository\Campaign> $campaigns */
 /** @var array<string,array{label_key:string,sortable:?string,default:bool}> $columns_meta */
 /** @var list<string> $visible_columns */
@@ -23,7 +24,7 @@ $flag = function (?string $cc): string {
 };
 
 // One-click filter URLs preserving currently active filters
-$pxFilterFields = ['campaign_id', 'event_name', 'domain', 'since', 'search', 'bot_view'];
+$pxFilterFields = ['campaign_id', 'event_name', 'domain', 'country', 'ip', 'fp_js', 'since', 'from', 'to', 'range', 'search', 'bot_view'];
 $filterUrl = function (array $overrides) use ($filters, $pxFilterFields): string {
     $q = [];
     foreach ($pxFilterFields as $k) {
@@ -172,8 +173,8 @@ require __DIR__ . '/../../_partials/page-header.php';
 <!-- 48h timeline — last 48 hours from current hour, reflects active filters -->
 <div style="margin-bottom:18px;padding:14px 16px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-surface)">
     <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-        <span class="eyebrow"><?= e(t('pixel.chart.last_48h')) ?></span>
-        <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--color-faint)"><?= e(t('pixel.chart.hourly_filtered')) ?></span>
+        <span class="eyebrow" style="font-variant-numeric:tabular-nums"><?= e(date('d.m.Y', (int)strtotime((string)($range_from ?? 'today')))) ?> – <?= e(date('d.m.Y', (int)strtotime((string)($range_to ?? 'today')))) ?></span>
+        <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--color-faint)"><?= e(t(($timeline_step ?? 'hour') === 'day' ? 'pixel.chart.daily_filtered' : 'pixel.chart.hourly_filtered')) ?></span>
     </div>
     <div x-data="pixelTimeline({ points: <?= e(json_encode($timeline, JSON_UNESCAPED_SLASHES)) ?> })" style="width:100%;height:180px"></div>
 </div>
@@ -222,9 +223,14 @@ require __DIR__ . '/../../_partials/page-header.php';
         <input type="text" name="ip" value="<?= e((string)($filters['ip'] ?? '')) ?>" placeholder="1.2.3.4" class="input-sm input-mono" style="width:140px">
     </div>
     <div class="filter-field">
-        <label class="filter-label"><?= e(t('pixel.filter.since')) ?></label>
-        <input type="datetime-local" name="since" value="<?= e($sinceDisplay) ?>" class="input-sm">
+        <label class="filter-label"><?= e(t('pixel.filter.country')) ?></label>
+        <input type="text" name="country" value="<?= e((string)($filters['country'] ?? '')) ?>" placeholder="<?= e(t('pixel.filter.country_ph')) ?>" class="input-sm input-mono" style="width:110px">
     </div>
+    <?php
+    $rangeDefault = '7d';
+    $rangeUrl = static fn (string $preset): string => $filterUrl(['range' => $preset, 'from' => null, 'to' => null, 'since' => null]);
+    require __DIR__ . '/../../_partials/date-range.php';
+    ?>
     <div class="filter-field">
         <label class="filter-label"><?= e(t('pixel.filter.bot')) ?></label>
         <select name="bot_view" class="input-sm" style="width:140px">
@@ -292,19 +298,23 @@ require __DIR__ . '/../../_partials/page-header.php';
             </div>
 
             <footer class="drawer-footer">
-                <form method="post" action="<?= e(url('/admin/pixel/columns/reset')) ?>" style="margin-right:auto">
-                    <?= csrf_field($csrf_token) ?>
-                    <button type="submit" class="btn-ghost" style="font-size:0.8rem"><?= e(t('pixel.columns_reset')) ?></button>
-                </form>
+                <!-- The drawer sits inside the GET filter form, and forms cannot
+                     nest: these controls point at sibling POST forms below via
+                     form="", so neither they nor a CSRF token join the filters. -->
+                <button type="submit" form="pixel-columns-reset-form" class="btn-ghost" style="font-size:0.8rem;margin-right:auto"><?= e(t('pixel.columns_reset')) ?></button>
                 <button type="button" class="btn-secondary" @click="open = false" style="font-size:0.8rem"><?= e(t('pixel.cancel')) ?></button>
-                <form method="post" action="<?= e(url('/admin/pixel/columns')) ?>">
-                    <?= csrf_field($csrf_token) ?>
-                    <input type="hidden" name="columns" :value="JSON.stringify(visibleKeys())">
-                    <button type="submit" class="btn" style="font-size:0.8rem"><?= e(t('pixel.columns_save')) ?></button>
-                </form>
+                <input type="hidden" name="columns" form="pixel-columns-save-form" :value="JSON.stringify(visibleKeys())">
+                <button type="submit" form="pixel-columns-save-form" class="btn" style="font-size:0.8rem"><?= e(t('pixel.columns_save')) ?></button>
             </footer>
         </aside>
     </div>
+</form>
+
+<form id="pixel-columns-reset-form" method="post" action="<?= e(url('/admin/pixel/columns/reset')) ?>" style="display:none">
+    <?= csrf_field($csrf_token) ?>
+</form>
+<form id="pixel-columns-save-form" method="post" action="<?= e(url('/admin/pixel/columns')) ?>" style="display:none">
+    <?= csrf_field($csrf_token) ?>
 </form>
 
 <?php if (empty($items)): ?>
@@ -409,7 +419,13 @@ require __DIR__ . '/../../_partials/page-header.php';
         'campaign_id' => $filters['campaign_id'] ?? null,
         'event_name'  => $filters['event_name']  ?? null,
         'domain'      => $filters['domain']      ?? null,
+        'country'     => $filters['country']     ?? null,
+        'ip'          => $filters['ip']          ?? null,
+        'fp_js'       => $filters['fp_js']       ?? null,
         'since'       => $filters['since']       ?? null,
+        'from'        => $filters['from']        ?? null,
+        'to'          => $filters['to']          ?? null,
+        'range'       => $filters['range']       ?? null,
         'search'      => $filters['search']      ?? null,
         'bot_view'    => ($filters['bot_view'] ?? 'hide') !== 'hide' ? $filters['bot_view'] : null,
     ], fn ($v) => $v !== null && $v !== '');

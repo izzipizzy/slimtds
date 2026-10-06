@@ -8,6 +8,8 @@ use App\Admin\Clicks\ColumnPreferences;
 use App\Admin\Repository\CampaignRepository;
 use App\Admin\Repository\ClickRepository;
 use App\Admin\Repository\ViewPreferenceRepository;
+use App\Shared\Time\DateRange;
+use App\Shared\Time\TimelineWindow;
 use App\Shared\View\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -15,6 +17,9 @@ use Psr\Http\Message\ServerRequestInterface;
 final class ClickController
 {
     /** Filter keys an operator may pin as their personal default for this list. */
+    /** Days in the default list window — mirrors ClickRepository's `interval '7 days'`. */
+    private const DEFAULT_DAYS = 7;
+
     private const SAVEABLE = ['is_trash', 'bot_view', 'search', 'entry_ref', 'fp_js_has'];
 
     private const VIEW_KEY = 'clicks';
@@ -74,6 +79,10 @@ final class ClickController
             : null;
         if ($hasExactLookup) $entryRef = null;
 
+        // Day range from the filter bar. Unset = the repository's rolling
+        // 7-day default; the inputs are prefilled with that same window.
+        $range = DateRange::fromQuery($params, self::DEFAULT_DAYS, fn (): ?string => $this->repo->earliestDay());
+
         $filters = [
             'campaign_id' => $params['campaign_id'] ?? null,
             'entry_ref'   => $entryRef,
@@ -83,6 +92,9 @@ final class ClickController
             'is_uniq'     => isset($params['is_uniq']) && $params['is_uniq'] !== '' ? ($params['is_uniq'] === '1') : null,
             'is_trash'    => $routing,
             'since'       => $params['since'] ?? null,
+            'from'        => $range->from,
+            'to'          => $range->to,
+            'range'       => $range->preset,
             'search'      => is_string($params['search'] ?? null) && $params['search'] !== '' ? $params['search'] : null,
             'ip'          => is_string($params['ip'] ?? null) && trim($params['ip']) !== '' ? trim($params['ip']) : null,
             'click_id'    => is_string($params['click_id'] ?? null) && $params['click_id'] !== '' ? $params['click_id'] : null,
@@ -102,7 +114,11 @@ final class ClickController
         $items = $this->repo->page($page, $perPage, $filters, $orderBy);
         $total = $this->repo->count($filters);
         $pages = max(1, (int)ceil($total / $perPage));
-        $timeline = $this->repo->hourlyTimeline($filters);
+        $window = TimelineWindow::fromFilters($filters, self::DEFAULT_DAYS);
+        $timeline = $this->repo->timeline($filters, $window);
+        $summary = $this->repo->summary($filters);
+        $topLanders = $this->repo->topLanders($filters, 10);
+        $topOffers = $this->repo->topOffers($filters, 10);
 
         // When the user is drilling into a single click via ?click_id=, also
         // load the visitor card + journey so they can see the full pre/post
@@ -150,8 +166,14 @@ final class ClickController
                 'total' => $total,
                 'pages' => $pages,
                 'page' => $page,
-                'filters' => $filters,
+                'filters' => $range->forView($filters),
                 'timeline' => $timeline,
+                'timeline_step' => $window->step,
+                'summary' => $summary,
+                'topLanders' => $topLanders,
+                'topOffers' => $topOffers,
+                'range_from' => $range->from ?? DateRange::daysAgo(self::DEFAULT_DAYS),
+                'range_to' => $range->to ?? DateRange::today(),
                 'campaigns' => $this->campaigns->page(1, 100),
                 'columns_meta' => ColumnPreferences::COLUMNS,
                 'visible_columns' => $this->columns->visible(),

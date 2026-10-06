@@ -129,3 +129,42 @@ test('get returns the session row or null', function (): void {
     expect($this->repo->get($this->sid))->not->toBeNull();
     expect($this->repo->get('00000000-0000-7000-8000-000000000000'))->toBeNull();
 });
+
+
+test('activity filter distinguishes inactive, active and unclassified recordings', function (): void {
+    expect($this->repo->count(['activity' => 'unknown']))->toBe(1);
+    foreach (['false' => 'inactive', 'true' => 'active'] as $value => $filter) {
+        $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = :v::boolean WHERE session_id = :s', ['v' => $value, 's' => $this->sid]);
+        expect($this->repo->count(['activity' => $filter]))->toBe(1);
+        expect($this->repo->page(['activity' => $filter], 1, 50))->toHaveCount(1);
+        expect($this->repo->count(['activity' => 'unknown']))->toBe(0);
+    }
+    expect($this->repo->count(['activity' => 'inactive']))->toBe(0);
+    expect($this->repo->count(['activity' => 'invalid']))->toBe(1);
+});
+
+test('historical classification preserves replays and leaves incomplete evidence unknown', function (): void {
+    $command = new \App\Cron\Command\RrwebClassifyCommand($this->db);
+    $before = $this->repo->events($this->sid);
+    expect($command->classify([['session_id' => $this->sid, 'chunk_count' => 2]]))->toBe(1);
+    expect($this->repo->get($this->sid)['has_interaction'])->toBeFalse();
+    expect($this->repo->events($this->sid))->toBe($before);
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = NULL, chunk_count = 3 WHERE session_id = :s', ['s' => $this->sid]);
+    expect($command->classify([['session_id' => $this->sid, 'chunk_count' => 3]]))->toBe(0);
+    expect($this->repo->get($this->sid)['has_interaction'])->toBeNull();
+    // An old snapshot must not overwrite a session receiving another chunk.
+    expect($command->classify([['session_id' => $this->sid, 'chunk_count' => 2]]))->toBe(0);
+});
+
+test('historical classification recognizes touch and handles damaged compressed data', function (): void {
+    $command = new \App\Cron\Command\RrwebClassifyCommand($this->db);
+    $this->db->execute("UPDATE stats.rrweb_chunks SET payload = decode(:b, 'base64') WHERE session_id = :s", [
+        'b' => base64_encode(gzencode(json_encode([['type' => 3, 'data' => ['source' => 6, 'positions' => [['x' => 1, 'y' => 2]]]]]))), 's' => $this->sid,
+    ]);
+    expect($command->classify([['session_id' => $this->sid, 'chunk_count' => 2]]))->toBe(1);
+    expect($this->repo->get($this->sid)['has_interaction'])->toBeTrue();
+    $this->db->execute('UPDATE stats.rrweb_sessions SET has_interaction = NULL WHERE session_id = :s', ['s' => $this->sid]);
+    $this->db->execute("UPDATE stats.rrweb_chunks SET payload = decode('00', 'hex') WHERE session_id = :s", ['s' => $this->sid]);
+    expect($command->classify([['session_id' => $this->sid, 'chunk_count' => 2]]))->toBe(0);
+    expect($this->repo->get($this->sid)['has_interaction'])->toBeNull();
+});

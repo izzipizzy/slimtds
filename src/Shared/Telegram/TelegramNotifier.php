@@ -61,7 +61,6 @@ final class TelegramNotifier
 
         $body  = curl_exec($ch);
         $errno = curl_errno($ch);
-        curl_close($ch);
 
         if ($errno !== 0 || $body === false) {
             error_log(sprintf('TelegramNotifier: cURL error %d', $errno));

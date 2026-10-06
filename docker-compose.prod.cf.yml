@@ -11,7 +11,7 @@ services:
       - "443:443"
 
   geoipupdate:
-    image: maxmindinc/geoipupdate:latest
+    image: maxmindinc/geoipupdate:v8.0.0@sha256:51e70dd6f16cd3e4d845ac02d09940b10772a75b9d741427d235a78570923c1d
     environment:
       GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID}
       GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY}

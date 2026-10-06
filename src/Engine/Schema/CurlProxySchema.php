@@ -26,7 +26,6 @@ final class CurlProxySchema implements Schema
         $body = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $type = (string)(curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'text/html');
-        curl_close($ch);
 
         if ($body === false) return $response->withStatus(502);
         $response->getBody()->write((string)$body);

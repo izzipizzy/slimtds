@@ -113,7 +113,7 @@ test-arch:
 
 ## test-browser — Run browser tests (requires BROWSER_TESTS=1 + Playwright)
 test-browser:
-	docker compose exec -e BROWSER_TESTS=1 app ./vendor/bin/pest --testsuite=Browser
+	docker compose exec -e BROWSER_TESTS=1 -e BROWSER_BASE_URL="$(BROWSER_BASE_URL)" -e TEST_PG_DSN="$(TEST_PG_DSN)" -e BROWSER_LANDER_URL_PATTERN="$(BROWSER_LANDER_URL_PATTERN)" app ./vendor/bin/pest --testsuite=Browser
 
 ## release-publish — Publish to GitHub (usage: make release-publish VERSION=0.7.1 [DRY=1])
 release-publish:
@@ -138,7 +138,7 @@ build:
 
 ## build-assets — Rebuild frontend assets (Bun + Tailwind)
 build-assets:
-	docker run --rm -v "$(shell pwd):/app" -w /app oven/bun:1-alpine sh -c "bun install && bun run build"
+	docker run --rm -v "$(shell pwd):/app" -w /app oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f sh -c "bun install && bun run build"
 
 ## pixel-test-up — Start the 4-domain pixel test stand (lander-{a,b,c,d}.local, 3 pages each)
 pixel-test-up:

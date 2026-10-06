@@ -45,7 +45,7 @@ final readonly class Offer
             name:          (string)$row['name'],
             url:           (string)$row['url'],
             postbackToken: (string)$row['postback_token'],
-            payoutDefault: isset($row['payout_default']) && $row['payout_default'] !== null
+            payoutDefault: isset($row['payout_default'])
                 ? (string)$row['payout_default']
                 : null,
             currency:      (string)$row['currency'],

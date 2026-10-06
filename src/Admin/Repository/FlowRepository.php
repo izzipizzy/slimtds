@@ -218,4 +218,5 @@ final class FlowRepository
         // 'rotate' / '0' / false → rotate by weight; everything else → sticky.
         return ($v === 'rotate' || $v === '0' || $v === 0 || $v === false) ? 'false' : 'true';
     }
+
 }

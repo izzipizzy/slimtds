@@ -193,6 +193,17 @@ $renderSettings = function () use ($campaign, $action, $errors, $csrf_token, $ti
         <?= e(t('campaigns.flows_intro')) ?>
     </p>
 
+    <div style="border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);padding:14px 16px;margin-bottom:16px;max-width:880px">
+        <span class="eyebrow" style="font-size:0.65rem;display:block;margin-bottom:10px"><?= e(t('test_link.campaign_title')) ?></span>
+        <?php
+        $testKey = \App\Shared\TestLink::campaignKey($campaign->id);
+        $testBase = $liveUrl;
+        $testCompact = false;
+        $testHint = t('test_link.campaign_hint');
+        require __DIR__ . '/../../_partials/test-link.php';
+        ?>
+    </div>
+
     <?php if (empty($flows)): ?>
         <?php
         $title = t('flows.count.zero');
@@ -286,6 +297,13 @@ $renderSettings = function () use ($campaign, $action, $errors, $csrf_token, $ti
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
+
+                        <?php
+                        $testKey = \App\Shared\TestLink::flowKey($f->id);
+                        $testBase = $liveUrl;
+                        $testCompact = true;
+                        require __DIR__ . '/../../_partials/test-link.php';
+                        ?>
                     </div>
 
                     <!-- Actions -->

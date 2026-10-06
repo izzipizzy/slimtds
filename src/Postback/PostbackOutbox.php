@@ -115,7 +115,6 @@ final class PostbackOutbox
         $body      = curl_exec($ch);
         $httpCode  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
 
         $responseText = is_string($body) ? substr($body, 0, 500) : '';
         $isSuccess = ($curlError === '' && $httpCode >= 200 && $httpCode < 400);

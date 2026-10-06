@@ -6,6 +6,8 @@ namespace App\Pixel;
 
 use App\Shared\Db\Connection;
 use App\Shared\Referer\SearchEngine;
+use App\Shared\Time\DateRange;
+use App\Shared\Time\TimelineWindow;
 
 final class PixelEventRepository
 {
@@ -50,7 +52,7 @@ final class PixelEventRepository
     /**
      * Paginated cross-campaign pixel events with enriched campaign info.
      *
-     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, since?:?string, search?:?string} $filters
+     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, country?:?string, since?:?string, from?:?string, to?:?string, search?:?string} $filters
      * @param string $orderBy SQL ORDER BY clause — caller must whitelist (e.g. via PixelColumnPreferences)
      * @return list<array<string,mixed>>
      */
@@ -85,7 +87,7 @@ final class PixelEventRepository
     /**
      * Total count for pagination.
      *
-     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, since?:?string, search?:?string} $filters
+     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, country?:?string, since?:?string, from?:?string, to?:?string, search?:?string} $filters
      */
     public function count(array $filters = []): int
     {
@@ -96,10 +98,17 @@ final class PixelEventRepository
         );
     }
 
+    /** Day (APP_TZ) of the oldest event on record — the lower bound of the "all time" preset. */
+    public function earliestDay(): ?string
+    {
+        $day = $this->db->fetchScalar('SELECT min(created_at)::date::text FROM stats.pixel_events');
+        return is_string($day) && $day !== '' ? $day : null;
+    }
+
     /**
      * KPI summary for the filtered window.
      *
-     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, since?:?string, search?:?string} $filters
+     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, country?:?string, since?:?string, from?:?string, to?:?string, search?:?string} $filters
      * @return array{events:int, uniq_visitors:int, uniq_fp:int, distinct_event_types:int}
      */
     public function summary(array $filters = []): array
@@ -125,7 +134,7 @@ final class PixelEventRepository
     /**
      * Top N source-page hosts by event count.
      *
-     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, since?:?string, search?:?string} $filters
+     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, country?:?string, since?:?string, from?:?string, to?:?string, search?:?string} $filters
      * @return list<array{host:string, events:int}>
      */
     public function topDomains(array $filters = [], int $limit = 10): array
@@ -154,7 +163,7 @@ final class PixelEventRepository
     /**
      * Top N event names by count.
      *
-     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, since?:?string, search?:?string} $filters
+     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, country?:?string, since?:?string, from?:?string, to?:?string, search?:?string} $filters
      * @return list<array{event_name:string, events:int}>
      */
     public function topEventNames(array $filters = [], int $limit = 10): array
@@ -175,60 +184,37 @@ final class PixelEventRepository
     }
 
     /**
-     * Hourly buckets for the 48-hour window ending at the current hour.
-     * Reuses the cross-campaign filter set (campaign/event_name/domain) but
-     * pins the time window to [now()−47h, now()] so the chart always reflects
-     * the last 48 hours of the current hour, regardless of `since`.
+     * Chart buckets over the same period and the same filters as the list under
+     * it — hourly, or daily once the period is wider than
+     * TimelineWindow::HOURLY_MAX_DAYS. The bucket start stays under the 'hour'
+     * key whatever the step.
      *
-     * @param array{campaign_id?:?string, event_name?:?string, domain?:?string, search?:?string} $filters
+     * @param array<string,mixed> $filters
      * @return list<array{hour:string, events:int, uniq:int}>
      */
-    public function hourlyTimeline(array $filters): array
+    public function timeline(array $filters, TimelineWindow $window): array
     {
-        $cond   = [];
-        $params = [];
-
-        if (!empty($filters['campaign_id'])) {
-            $cond[]        = 'pe.campaign_id = :cid';
-            $params['cid'] = (string)$filters['campaign_id'];
-        }
-        if (!empty($filters['event_name'])) {
-            $cond[]               = 'pe.event_name = :event_name';
-            $params['event_name'] = (string)$filters['event_name'];
-        }
-        if (!empty($filters['domain'])) {
-            // Exact host match (was ILIKE '%domain%'): hits idx_pixel_events_host
-            // (btree on the same regexp_replace expr) instead of a lossy gin_trgm
-            // heap-recheck over every candidate row.
-            $cond[]           = "regexp_replace(pe.page_url, '^https?://([^/]+).*', '\\1') = :domain";
-            $params['domain'] = (string)$filters['domain'];
-        }
-        if (!empty($filters['search'])) {
-            [$frag, $bind] = SearchEngine::sqlFilter((string)$filters['search'], 'pe.referer', 'se');
-            if ($frag !== '') {
-                $cond[] = $frag;
-                $params = array_merge($params, $bind);
-            }
-        }
-
+        [$cond, $params] = $this->filterConditionsNoTime($filters);
+        $params += $window->params;
+        $step = $window->step;
         $extra = $cond ? ' AND ' . implode(' AND ', $cond) : '';
 
         $rows = $this->db->fetchAll(
             <<<SQL
                 WITH hours AS (
                     SELECT generate_series(
-                        date_trunc('hour', now()) - interval '47 hours',
-                        date_trunc('hour', now()),
-                        interval '1 hour'
+                        {$window->startSql},
+                        {$window->endSql} - interval '1 {$step}',
+                        interval '1 {$step}'
                     ) AS hour
                 ),
                 agg AS (
-                    SELECT date_trunc('hour', pe.created_at) AS hour,
+                    SELECT date_trunc('{$step}', pe.created_at) AS hour,
                            count(*)                          AS events,
                            count(DISTINCT pe.visitor_uuid)   AS uniq
                     FROM stats.pixel_events pe
-                    WHERE pe.created_at >= date_trunc('hour', now()) - interval '47 hours'
-                      AND pe.created_at <  date_trunc('hour', now()) + interval '1 hour'
+                    WHERE pe.created_at >= {$window->startSql}
+                      AND pe.created_at <  {$window->endSql}
                       {$extra}
                     GROUP BY 1
                 )
@@ -257,6 +243,40 @@ final class PixelEventRepository
      * @return array{0:string, 1:array<string,mixed>}
      */
     private function buildWhere(array $filters): array
+    {
+        [$cond, $params] = $this->filterConditionsNoTime($filters);
+
+        // Time-window for partition pruning; default 7 days. The filter bar's
+        // day range (from/to, inclusive) wins over the legacy ISO 'since'.
+        $from = DateRange::day($filters['from'] ?? null);
+        $to   = DateRange::day($filters['to'] ?? null);
+        if ($from !== null) {
+            $cond[]         = 'pe.created_at >= :from::timestamptz';
+            $params['from'] = $from;
+        } elseif (!empty($filters['since'])) {
+            $cond[]          = 'pe.created_at >= :since';
+            $params['since'] = (string)$filters['since'];
+        } else {
+            $cond[] = "pe.created_at >= now() - interval '7 days'";
+        }
+        if ($to !== null) {
+            $cond[]            = 'pe.created_at < :to_excl::timestamptz';
+            $params['to_excl'] = DateRange::exclusiveEnd($to);
+        }
+
+        $where = $cond ? 'WHERE ' . implode(' AND ', $cond) : '';
+        return [$where, $params];
+    }
+
+    /**
+     * Everything but the time window — shared by the list queries (which add
+     * their own window) and the chart (which brings a TimelineWindow), so the
+     * chart can never be filtered differently from the list under it.
+     *
+     * @param array<string,mixed> $filters
+     * @return array{0:list<string>, 1:array<string,mixed>}
+     */
+    private function filterConditionsNoTime(array $filters): array
     {
         $cond   = [];
         $params = [];
@@ -288,6 +308,10 @@ final class PixelEventRepository
             $cond[]        = 'host(pe.ip) ILIKE :ip';
             $params['ip']  = '%' . (string)$filters['ip'] . '%';
         }
+        if (!empty($filters['country'])) {
+            $cond[]            = 'pe.country = :country';
+            $params['country'] = strtolower((string)$filters['country']);
+        }
         if (!empty($filters['fp_js'])) {
             $cond[]          = 'pe.fp_js = :fp_js';
             $params['fp_js'] = (string)$filters['fp_js'];
@@ -300,15 +324,6 @@ final class PixelEventRepository
             $cond[] = 'pe.is_bot = true';
         }
 
-        // Time-window for partition pruning; default 7 days
-        if (!empty($filters['since'])) {
-            $cond[]          = 'pe.created_at >= :since';
-            $params['since'] = (string)$filters['since'];
-        } else {
-            $cond[] = "pe.created_at >= now() - interval '7 days'";
-        }
-
-        $where = $cond ? 'WHERE ' . implode(' AND ', $cond) : '';
-        return [$where, $params];
+        return [$cond, $params];
     }
 }

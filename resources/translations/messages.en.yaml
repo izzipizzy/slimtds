@@ -335,8 +335,16 @@ clicks:
   columns_save: Save
   columns_reset: Reset
   chart:
-    last_48h: last 48 hours
     hourly_filtered: hourly · filtered
+    daily_filtered: daily · filtered
+  kpi:
+    clicks: Clicks
+    unique_visitors: Unique visitors
+    unique_fp: Unique fingerprints
+    conversions: Conversions
+    approved: approved
+  top_landers: Top landers
+  top_offers: Top offers
   filter:
     campaign: Campaign
     country: Country
@@ -401,13 +409,15 @@ pixel:
   columns_save: Save
   columns_reset: Reset
   chart:
-    last_48h: last 48 hours
     hourly_filtered: hourly · filtered
+    daily_filtered: daily · filtered
   filter:
     campaign: Campaign
     event: Event
     domain: Domain
     since: Since
+    country: Country
+    country_ph: ru / us
     bot: Bot
     referer: Referer
     any_campaign: '— any campaign —'
@@ -506,6 +516,7 @@ settings:
     backups: Backups
     cron: Cron log
     notifications: Notifications
+    mcp: MCP
   retention:
     heading: Retention (days)
     hint: 'How many days to keep data. Changes apply on the next {cmd} run (daily at 02:00 UTC).'
@@ -560,6 +571,38 @@ settings:
     template: Template
     template_hint: 'Clear the field and save to restore the default template. Available macros:'
     save: Save notifications
+  mcp:
+    heading: MCP server
+    intro: 'Lets an AI client — Claude Code, Codex, Cursor — read this instance''s traffic reports. Read-only: it cannot change campaigns, flows or offers.'
+    status_off: Off — no key
+    status_on: On
+    key: Key
+    created: Created
+    last_used: Last used
+    never: never
+    generate: Generate key
+    regenerate: Regenerate
+    revoke: Revoke
+    confirm_regenerate: 'The current key stops working at once and every client needs the new one. Continue?'
+    confirm_revoke: 'Every connected client loses access. Continue?'
+    new_key_title: Your key — shown once
+    new_key_hint: 'Copy it now. Only its hash is stored, so it cannot be shown again; if it is lost, regenerate.'
+    copy: Copy
+    copied: Copied
+    full_ip: Return full IP addresses
+    full_ip_hint: 'Off by default: reports go to an LLM provider, so IPv4 is cut to /24 and IPv6 to /48.'
+    save: Save
+    install: Connect a client
+    install_hint: 'The snippets use this instance''s address. The key is filled in only right after it is generated — otherwise paste yours over {placeholder}.'
+    client_claude: Claude Code
+    client_codex: Codex
+    client_json: Cursor, VS Code, Windsurf
+    client_desktop: Claude Desktop
+    codex_env: 'and export the key in your shell profile:'
+    skill: Agent skill
+    skill_hint: 'Optional. Teaches the agent how to read these reports — campaign reviews, bot audits, funnel leaks. The same guidance already reaches every client as MCP prompts.'
+    web_note: 'claude.ai in the browser needs OAuth for custom connectors and is not supported.'
+    cf_note: 'Behind Cloudflare: if clients get 403, exempt /mcp from Bot Fight Mode.'
 
 form:
   save: Save
@@ -598,6 +641,14 @@ pagination:
   next: next
 
 filter_opt:
+  date_range: Date range
+  date_from: From date
+  date_to: To date
+  range_7d: 7 days
+  range_30d: month
+  range_90d: 3 months
+  range_365d: year
+  range_all: all time
   any: '— any —'
   all: '— all —'
   humans_only: humans only
@@ -617,6 +668,31 @@ nav:
   sessions: Sessions
 
 sessions:
+  activity_not_bot: "Hide possible bots"
+  filter_activity: "Activity / bots"
+  activity_all: "All activity"
+  activity_inactive: "Possible bots — no interaction"
+  activity_active: "Interaction recorded"
+  activity_unknown: "Not checked"
+  activity_badge_inactive: "Possible bot"
+  activity_hint_inactive: "No mouse movement, button presses, clicks or touch recorded. This is a heuristic, not a confirmed bot."
+  activity_hint_active: "Mouse movement, button press, click or touch was recorded."
+  activity_hint_unknown: "The recording has not been checked or some events are unavailable."
+  filter_browser: "Browser"
+  filter_os: "OS"
+  filter_device: "Device"
+  filter_source: "Source"
+  subtitle: "Recorded visits, from the first page view to the last interaction."
+  empty_hint: "Adjust the filters or wait for new visits to be recorded."
+  seconds: "s"
+  player_play: "Play"
+  player_pause: "Pause"
+  player_timeline: "Playback position"
+  player_speed: "Playback speed"
+  player_loading: "Loading recording…"
+  player_load_error: "Could not load this recording. Refresh the page and try again."
+  player_empty_recording: "This recording does not have enough events to replay."
+  player_recording: "Recording"
   title: Sessions
   all_campaigns: All campaigns
   all_domains: All domains
@@ -653,3 +729,17 @@ version:
   stale_title: 'Update check has not succeeded recently'
   toast_behind: 'A newer release is available: %s'
   how_to_update: 'how to update'
+
+test_link:
+  eyebrow: test
+  copy_link: link
+  copy_param: param
+  copied: Test link copied
+  direct: Direct click (trace instead of redirect)
+  lander: Parameter for a lander URL
+  campaign_title: Campaign test link
+  campaign_hint: 'Routes like an ordinary visitor: filters, bot detection, flow order. Shows your IP, ASN, whether you were flagged as a bot and which flow matched.'
+  flow_title: Flow test link
+  flow_hint: 'Sends the request straight into this flow, skipping its filters — works even while the flow is switched off. Tests the offers and schema, not the filters.'
+  extras: '&_geo=de swaps the country; drop &_dbg=1 to get the real redirect (the trace stays in the X-TDS-Debug header).'
+  disabled: Test links are off — APP_SECRET is not set.

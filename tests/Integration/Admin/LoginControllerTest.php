@@ -19,6 +19,8 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
 
 beforeEach(function (): void {
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    session_start(['use_cookies' => false, 'cache_limiter' => '']);
     $_SESSION = [];
     $pdo = new PDO(
         $_ENV['DB_DSN'] ?? 'pgsql:host=db;port=5432;dbname=slimtds',
@@ -59,6 +61,10 @@ beforeEach(function (): void {
     $assets = new Manifest($root . '/public/assets/manifest.json');
     $i18n   = new I18n((new TranslatorFactory($root . '/resources/translations'))->create());
     $this->view = new View($root . '/resources/views', $assets, $i18n);
+});
+
+afterEach(function (): void {
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 });
 
 test('valid creds set session and redirect to /admin', function (): void {

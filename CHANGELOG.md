@@ -2,12 +2,115 @@
 
 Русская версия — [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
-This file is the machine-readable source for `scripts/publish.sh`: the section
-of the version being released becomes the GitHub release body, and the release
-section immediately below it names the predecessor whose tag the new commit
-must be built on. Only versions that were actually published carry a
-`## [x.y.z]` heading — everything that predates the public repository is listed
-at the bottom under a plain heading the tooling skips.
+This file is the machine-readable source for `scripts/publish.sh`: the target
+version's section becomes the GitHub release body, and the release section
+immediately below it names the published predecessor whose tag supplies the
+public parent. A prepared target may carry a `## [x.y.z]` heading when explicitly
+marked as unpublished; all predecessor headings must name published releases.
+Versions before the public repository remain under the plain heading at the bottom.
+
+## [0.8.0] — 2026-10-06
+
+Net application changes since public 0.7.3.
+The documentation/landing site is a separate repository and is not shipped here.
+
+### Traffic analysis and administration
+
+- A bearer-authenticated MCP endpoint exposes nine read-only tools:
+  `list_campaigns`, `get_campaign`, `traffic_summary`, `traffic_timeline`,
+  `traffic_breakdown`, `list_clicks`, `visitor_journey`, `conversions_summary`
+  and `pixel_summary`. Report calls use database-enforced read-only transactions
+  and a 15-second statement timeout. Settings → MCP provides key generation,
+  regeneration/revocation and client setup snippets; keys are shown once and
+  stored as hashes. IPs are masked to IPv4 `/24` and IPv6 `/48` by default.
+  The bundled traffic-analysis skill is available at `/mcp/skill`.
+- Date-range filters on clicks, pixel events, sessions and conversions, rolling
+  period presets, a country filter on pixel events, and click KPI cards/top
+  lists. Pixel charts now use the same filters as their lists. Filter URLs no
+  longer carry CSRF tokens, and nested filter/action forms are fixed.
+- Signed campaign and flow test links use `_t`; `_geo` overrides the test
+  country and `_dbg=1` returns a routing trace. Campaign tests follow normal
+  routing; flow tests pin the selected flow. Pixel lander buttons retain the
+  test key. Reserved route names cannot be campaign aliases.
+
+### Sessions and removal of Clickunder
+
+Session lists and replay pages now share the admin design and light/dark theme.
+Replay uses a scaled viewport without enlarging mobile recordings, localized
+controls and guarded load/player errors. Browser regression tests exercise real
+rrweb recording, persisted events and replay controls; a dedicated Docker
+browser-test runner supplies Chromium and its supported dependencies.
+
+Sessions now display an interaction badge and filter. Recordings without mouse
+movement, button presses, clicks or touch are marked **possible bots**; this is
+a heuristic, not a confirmed bot verdict. Scrolling or typing alone do not qualify. The default hides these recordings
+and includes all durations. Unclassified recordings remain visible. Historical
+recordings can be processed in bounded batches with `bin/console rrweb:classify
+--all`; missing or damaged chunks stay unclassified and replay data is preserved.
+
+Clickunder is fully removed from the UI, routes (including `/p/play`), pixel,
+active application code and campaign/flow schema. Overlay/redirect/random modes
+and `_eng` support are gone; ordinary signed test links remain. Historical
+migration files are retained for forward upgrades.
+
+### Runtime and reproducible builds
+
+PHP **8.5 is now the minimum**. The pinned runtime uses PHP 8.5.11,
+FrankenPHP 1.12.7, Slim 4.15.3 and PostgreSQL 18.6. Dependencies move to Symfony
+8.1, Pest 5, PHPUnit 13 and PHPStan 2, with compatibility updates for those APIs.
+Root Bun dependencies and locks are refreshed (including rrweb 2.1.7, ECharts
+6.1.0, FingerprintJS 5.2.0, Alpine 3.17.4 and Tailwind 4.3.3). Docker images
+and CI actions are pinned by SHA; builds consume frozen locks.
+
+This is not a claim that every advisory is fixed: the recorded root Bun audit
+still reports a high-severity `braces` advisory in the build/watch dependency
+chain. Hosted CI execution and runner support for the updated action runtimes
+remain unverified locally.
+
+### Saved engine benchmark
+
+Median throughput from the saved 2026-10-04 comparison:
+
+| Response | Connections | Before req/s | After req/s | Change |
+|---|---:|---:|---:|---:|
+| Redirect 302 | 16 | 1581.9 | 1698.6 | +7.4% |
+| Redirect 302 | 50 | 1574.4 | 1685.9 | +7.1% |
+| No matching flow 403 | 16 | 1589.0 | 1774.4 | +11.7% |
+| No matching flow 403 | 50 | 1679.8 | 1776.8 | +5.8% |
+
+Before is archived source `a367ffc` on PHP 8.4.24 / FrankenPHP 1.12.6;
+after is the updated application/runtime stack. **This is not a direct 0.7.3
+comparison. Both databases use PostgreSQL 18.6.** There were 24 trials,
+400100 expected responses and zero unexpected responses/transport errors.
+Each cell uses three 10-second trials on a shared host. Several ranges overlap;
+these synthetic engine results do not guarantee a production or universal
+speedup and do not isolate the effect of any single dependency.
+
+[Methodology and limitations](https://github.com/izzipizzy/slimtds/blob/v0.8.0/docs/BENCHMARK-2026-10-04.md)
+and [per-trial CSV](https://github.com/izzipizzy/slimtds/blob/v0.8.0/docs/benchmarks/2026-10-04/results.csv)
+are pinned to the release tag. Full raw
+artifacts are retained outside the public repository.
+
+### Upgrade and recorded validation
+
+Take a **full backup** before upgrading, including the database and deployment
+configuration. Follow the [update procedure](https://github.com/izzipizzy/slimtds/blob/v0.8.0/README.md#updating-an-existing-install)
+and run all pending migrations before serving the new application. From 0.7.3,
+these include `20260919000001_engagement_mode` (historical addition),
+`20260921000001_auth_events_mcp_key` (MCP key audit events), and
+`20261004000001_remove_engagement_mode` (drops campaign/flow engagement columns), and
+`20261004000002_rrweb_session_interaction` (nullable activity flag and indexes), and
+`20261005000001_rrweb_pointer_activity` (invalidates earlier, broader activity labels).
+After upgrading, run `bin/console rrweb:classify --all` to rebuild labels from preserved recordings.
+Do not skip the historical addition. Rolling back the removal recreates disabled
+defaults; it **cannot recover removed settings**. Older code needs those columns
+restored before it can serve traffic; recovering their values requires the backup.
+
+Prior application validation, recorded before this release preparation: 646
+Unit/Integration/Arch tests, 12 Chromium browser tests, and PHPStan level 6 clean.
+The removal and session-interaction migrations were applied, rolled back and reapplied on an isolated
+restored database copy. These are recorded results, not application tests rerun
+for this documentation-only preparation.
 
 ## [0.7.3] — 2026-08-28
 

@@ -78,7 +78,7 @@ final class ColumnPreferences
 
     /**
      * Save the user's chosen visible columns in the order they were given.
-     * @param list<string> $orderedVisible
+     * @param array<mixed> $orderedVisible
      */
     public function setVisible(array $orderedVisible): void
     {

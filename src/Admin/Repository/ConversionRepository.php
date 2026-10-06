@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Admin\Repository;
 
 use App\Shared\Db\Connection;
+use App\Shared\Time\DateRange;
 
 final class ConversionRepository
 {
     public function __construct(private readonly Connection $db) {}
 
     /**
-     * @param array{campaign_id?:?string, status?:?string, since?:?string} $filters
+     * @param array{campaign_id?:?string, status?:?string, since?:?string, from?:?string, to?:?string} $filters
      * @return list<array<string,mixed>>
      */
     public function page(int $page, int $perPage, array $filters = []): array
@@ -33,6 +34,13 @@ final class ConversionRepository
              LIMIT :limit OFFSET :offset",
             $params,
         );
+    }
+
+    /** Day (APP_TZ) of the oldest conversion on record — the lower bound of the "all time" preset. */
+    public function earliestDay(): ?string
+    {
+        $day = $this->db->fetchScalar('SELECT min(created_at)::date::text FROM core.conversions');
+        return is_string($day) && $day !== '' ? $day : null;
     }
 
     /** @param array<string,mixed> $filters */
@@ -69,6 +77,38 @@ final class ConversionRepository
         return $out;
     }
 
+    /**
+     * @param array<string,mixed> $filters
+     * @return list<array{label:string, conversions:int, approved:int, payout:string}>
+     */
+    public function revenueBy(string $by, array $filters = [], int $limit = 50): array
+    {
+        $expr = ['offer' => 'o.name', 'campaign' => 'c.slug::text'][$by]
+            ?? throw new \InvalidArgumentException("unknown grouping: {$by}");
+        [$where, $params] = $this->buildWhere($filters);
+        $params['lim'] = $limit;
+        $rows = $this->db->fetchAll(
+            "SELECT COALESCE({$expr}, '(none)')                                          AS label,
+                    count(*)                                                            AS conversions,
+                    count(*) FILTER (WHERE cv.status = 'approved')                      AS approved,
+                    COALESCE(sum(cv.payout) FILTER (WHERE cv.status = 'approved'), 0)::text AS payout
+             FROM core.conversions cv
+             LEFT JOIN core.campaigns c ON c.id = cv.campaign_id
+             LEFT JOIN core.offers o    ON o.id = cv.offer_id
+             {$where}
+             GROUP BY 1
+             ORDER BY conversions DESC, label
+             LIMIT :lim",
+            $params,
+        );
+        return array_map(static fn (array $r): array => [
+            'label'       => (string)$r['label'],
+            'conversions' => (int)$r['conversions'],
+            'approved'    => (int)$r['approved'],
+            'payout'      => (string)$r['payout'],
+        ], $rows);
+    }
+
     /** @return array{0:string, 1:array<string,mixed>} */
     private function buildWhere(array $filters): array
     {
@@ -82,11 +122,22 @@ final class ConversionRepository
             $cond[] = 'cv.status = :status';
             $params['status'] = (string)$filters['status'];
         }
-        if (!empty($filters['since'])) {
+        // The filter bar's day range (from/to, inclusive) wins over the legacy
+        // ISO 'since' of old deep links.
+        $from = DateRange::day($filters['from'] ?? null);
+        $to   = DateRange::day($filters['to'] ?? null);
+        if ($from !== null) {
+            $cond[] = 'cv.created_at >= :from::timestamptz';
+            $params['from'] = $from;
+        } elseif (!empty($filters['since'])) {
             $cond[] = 'cv.created_at >= :since';
             $params['since'] = (string)$filters['since'];
         } else {
             $cond[] = "cv.created_at >= now() - interval '30 days'";
+        }
+        if ($to !== null) {
+            $cond[] = 'cv.created_at < :to_excl::timestamptz';
+            $params['to_excl'] = DateRange::exclusiveEnd($to);
         }
         return [$cond ? 'WHERE ' . implode(' AND ', $cond) : '', $params];
     }

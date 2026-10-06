@@ -65,7 +65,7 @@ final class PgSessionHandler implements SessionHandlerInterface, SessionIdInterf
         return true;
     }
 
-    public function gc(int $max_lifetime): int|false
+    public function gc(int $max_lifetime): int
     {
         return $this->db->execute('DELETE FROM core.sessions WHERE expires_at < now()');
     }

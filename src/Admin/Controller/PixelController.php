@@ -7,12 +7,17 @@ namespace App\Admin\Controller;
 use App\Admin\Pixel\PixelColumnPreferences;
 use App\Admin\Repository\CampaignRepository;
 use App\Pixel\PixelEventRepository;
+use App\Shared\Time\DateRange;
+use App\Shared\Time\TimelineWindow;
 use App\Shared\View\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 final class PixelController
 {
+    /** Days in the default list window — mirrors PixelEventRepository's `interval '7 days'`. */
+    private const DEFAULT_DAYS = 7;
+
     public function __construct(
         private readonly PixelEventRepository $repo,
         private readonly CampaignRepository $campaigns,
@@ -36,7 +41,11 @@ final class PixelController
         $page    = max(1, (int)($params['page'] ?? '1'));
         $perPage = 50;
 
-        // Validate 'since': accept ISO format; fall back to 7-day default if invalid
+        // Day range from the filter bar. Unset = the repository's rolling
+        // 7-day default; the inputs are prefilled with that same window.
+        $range = DateRange::fromQuery($params, self::DEFAULT_DAYS, fn (): ?string => $this->repo->earliestDay());
+
+        // Legacy 'since' (old deep links): accept ISO format; ignored if invalid
         $sinceRaw = $params['since'] ?? null;
         if ($sinceRaw !== null && $sinceRaw !== '' && strtotime($sinceRaw) === false) {
             $sinceRaw = null;
@@ -50,8 +59,12 @@ final class PixelController
             'campaign_id' => $params['campaign_id'] ?? null,
             'event_name'  => $params['event_name']  ?? null,
             'domain'      => $params['domain']       ?? null,
+            'country'     => is_string($params['country'] ?? null) ? trim($params['country']) : null,
             'ip'          => is_string($params['ip'] ?? null) && trim($params['ip']) !== '' ? trim($params['ip']) : null,
             'since'       => $sinceRaw !== '' ? $sinceRaw : null,
+            'from'        => $range->from,
+            'to'          => $range->to,
+            'range'       => $range->preset,
             'search'      => is_string($params['search'] ?? null) && $params['search'] !== '' ? $params['search'] : null,
             'bot_view'    => $botView,
             'fp_js'       => is_string($params['fp_js'] ?? null) && $params['fp_js'] !== '' ? $params['fp_js'] : null,
@@ -73,10 +86,14 @@ final class PixelController
         $summary = $this->repo->summary($filters);
         $topDomains    = $this->repo->topDomains($filters, 10);
         $topEventNames = $this->repo->topEventNames($filters, 10);
-        $timeline      = $this->repo->hourlyTimeline($filters);
+        $window        = TimelineWindow::fromFilters($filters, self::DEFAULT_DAYS);
+        $timeline      = $this->repo->timeline($filters, $window);
 
-        // Compute the effective 'since' label shown in the datetime-local input
-        $sinceDisplay = $sinceRaw ?? date('Y-m-d\TH:i:s', strtotime('-7 days'));
+        // What the date inputs show: the picked range, else the window the list
+        // is actually using (a legacy 'since' link, or the 7-day default).
+        $sinceTs = is_string($sinceRaw) && $sinceRaw !== '' ? strtotime($sinceRaw) : false;
+        $rangeFrom = $range->from
+            ?? ($sinceTs !== false ? date('Y-m-d', $sinceTs) : DateRange::daysAgo(self::DEFAULT_DAYS));
 
         $data = array_merge(
             $view->withRequestContext($request),
@@ -87,12 +104,14 @@ final class PixelController
                 'total'           => $total,
                 'pages'           => $pages,
                 'page'            => $page,
-                'filters'         => $filters,
+                'filters'         => $range->forView($filters),
                 'summary'         => $summary,
                 'topDomains'      => $topDomains,
                 'topEventNames'   => $topEventNames,
                 'timeline'        => $timeline,
-                'sinceDisplay'    => $sinceDisplay,
+                'timeline_step'   => $window->step,
+                'range_from'      => $rangeFrom,
+                'range_to'        => $range->to ?? DateRange::today(),
                 'campaigns'       => $this->campaigns->page(1, 100),
                 'columns_meta'    => PixelColumnPreferences::COLUMNS,
                 'visible_columns' => $this->columns->visible(),

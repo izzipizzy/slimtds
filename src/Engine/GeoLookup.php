@@ -9,7 +9,6 @@ use GeoIp2\Exception\AddressNotFoundException;
 
 final class GeoLookup
 {
-    private ?Reader $countryReader = null;
     private ?Reader $cityReader = null;
     private ?Reader $asnReader = null;
 

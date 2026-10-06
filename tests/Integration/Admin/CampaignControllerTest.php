@@ -80,6 +80,27 @@ test('update changes fields', function (): void {
     expect($this->repo->findById($c->id)->name)->toBe('Renamed');
 });
 
+test('a campaign whose slug is already a reserved word stays editable under that slug', function (): void {
+    $c = $this->repo->create(['name' => 'Legacy', 'slug' => 'admin']);
+    $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/campaigns/' . $c->id);
+    $req = $req->withParsedBody(['name' => 'Legacy renamed', 'slug' => 'admin', 'is_active' => '1', 'trash_mode' => 0]);
+    $resp = $this->controller->update($req, new Response(), $c->id);
+    expect($resp->getStatusCode())->toBe(302);
+    expect($resp->getHeaderLine('Location'))->toBe('/admin/campaigns');
+    expect($this->repo->findById($c->id)->name)->toBe('Legacy renamed');
+    expect($this->repo->findById($c->id)->slug)->toBe('admin');
+});
+
+test('a new campaign cannot claim a reserved word as its alias', function (): void {
+    $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/campaigns');
+    $req = $req->withParsedBody(['name' => 'New guy', 'slug' => 'admin']);
+    $resp = $this->controller->create($req, new Response());
+    expect($resp->getStatusCode())->toBe(302);
+    expect($resp->getHeaderLine('Location'))->toBe('/admin/campaigns/new');
+    expect($_SESSION['_errors'] ?? [])->not->toBeEmpty();
+    expect($this->repo->findBySlug('admin'))->toBeNull();
+});
+
 test('delete removes campaign', function (): void {
     $c = $this->repo->create(['name' => 'Doomed', 'slug' => 'delctl']);
     $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/campaigns/' . $c->id . '/delete');
