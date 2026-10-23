@@ -1,5 +1,5 @@
 # ===== Stage: assets-builder =====
-FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f AS assets-builder
+FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS assets-builder
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ RUN composer dump-autoload --optimize --classmap-authoritative
 
 # ===== Stage: runtime =====
 # Pin the PHP 8.5 / FrankenPHP runtime for reproducible builds.
-FROM dunglas/frankenphp:1.12.7-php8.5-alpine@sha256:34c27f58cd2343a004e836db3c82705150f4f47920b640b976707a6c7f4b8686 AS runtime
+FROM dunglas/frankenphp:1.13.2-php8.5.12-alpine@sha256:f4947926b4c5070176be7c72b03939e045f7ae9d249a3219cf9708bd5e6d0ff2 AS runtime
 
 # Системные зависимости для расширений
 RUN apk add --no-cache \

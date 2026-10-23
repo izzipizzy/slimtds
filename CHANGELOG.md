@@ -9,6 +9,13 @@ public parent. A prepared target may carry a `## [x.y.z]` heading when explicitl
 marked as unpublished; all predecessor headings must name published releases.
 Versions before the public repository remain under the plain heading at the bottom.
 
+## [0.8.1] — 2026-10-23
+
+- Update the runtime to PHP 8.5.12 (security release) and FrankenPHP 1.13.2.
+- Update Bun to 1.4.3 and Alpine.js to 3.17.5.
+- Refresh Composer dependencies, including Symfony 8.1.9, Pest 5.3.3 and PHPStan 2.2.17, with the required PHPUnit and ParaTest updates.
+- Pin the browser-test PHP image to 8.5.12.
+
 ## [0.8.0] — 2026-10-06
 
 Net application changes since public 0.7.3.

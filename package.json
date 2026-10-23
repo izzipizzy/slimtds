@@ -9,7 +9,7 @@
     "devDependencies": {
         "@fingerprintjs/fingerprintjs": "5.2.0",
         "@tailwindcss/cli": "4.3.3",
-        "alpinejs": "3.17.4",
+        "alpinejs": "3.17.5",
         "echarts": "6.1.0",
         "playwright": "1.63.0",
         "tailwindcss": "4.3.3"
