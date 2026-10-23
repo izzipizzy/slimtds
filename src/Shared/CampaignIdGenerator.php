@@ -9,8 +9,8 @@ final class CampaignIdGenerator
     /** Base58 (Bitcoin) alphabet — excludes confusable 0/O/I/l. */
     public const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
-    /** Regex for custom aliases: 3–16 chars, ASCII letters and digits only. */
-    public const CUSTOM_PATTERN = '/^[a-zA-Z0-9]{3,16}$/';
+    /** Regex for custom aliases: 1–50 chars, ASCII letters, digits, hyphen and underscore. */
+    public const CUSTOM_PATTERN = '/\A[a-zA-Z0-9_-]{1,50}\z/';
 
     public const DEFAULT_LENGTH = 6;
     public const MIN_LENGTH = 4;
@@ -20,7 +20,7 @@ final class CampaignIdGenerator
      * Words that are routes of their own. FastRoute prefers a static route, so
      * a campaign with one of these aliases would exist and never be reachable.
      */
-    public const RESERVED = ['mcp', 'admin', 'postback'];
+    public const RESERVED = ['mcp', 'admin', 'postback', '__health'];
 
     /**
      * Generate a random Base58 slug of the given length.

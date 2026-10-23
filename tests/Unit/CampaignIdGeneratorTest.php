@@ -48,29 +48,13 @@ test('generate produces diverse output (no duplicates in 10k runs)', function ()
     }
 })->group('slow');
 
-test('validateCustom accepts valid aliases', function (): void {
-    expect($this->gen->validateCustom('demo01'))->toBeTrue();
-    expect($this->gen->validateCustom('abc'))->toBeTrue();
-    expect($this->gen->validateCustom('BlackFriday2026'))->toBeTrue();
-    expect($this->gen->validateCustom('ABC123XYZ'))->toBeTrue();
-});
+test('validateCustom accepts alias boundaries and the expanded ASCII alphabet', function (string $alias): void {
+    expect($this->gen->validateCustom($alias))->toBeTrue();
+})->with(['a', 'qz', 'ravo-nex', 'demo_01', str_repeat('a', 17), str_repeat('Z', 50), '-', '_', '0']);
 
-test('validateCustom rejects too short', function (): void {
-    expect($this->gen->validateCustom(''))->toBeFalse();
-    expect($this->gen->validateCustom('ab'))->toBeFalse();
-});
-
-test('validateCustom rejects too long', function (): void {
-    expect($this->gen->validateCustom(str_repeat('a', 17)))->toBeFalse();
-});
-
-test('validateCustom rejects non-ASCII and special chars', function (): void {
-    expect($this->gen->validateCustom('demo-01'))->toBeFalse();
-    expect($this->gen->validateCustom('demo_01'))->toBeFalse();
-    expect($this->gen->validateCustom('demo 01'))->toBeFalse();
-    expect($this->gen->validateCustom('промо'))->toBeFalse();
-    expect($this->gen->validateCustom('abc!'))->toBeFalse();
-});
+test('validateCustom rejects empty and invalid custom aliases', function (string $alias): void {
+    expect($this->gen->validateCustom($alias))->toBeFalse();
+})->with(['', str_repeat('a', 51), 'a/b', 'a%2Fb', 'a b', ' a', 'a ', 'промо', "a\n", "a\0b", 'abc!', 'p.js']);
 
 test('alphabet has exactly 58 chars', function (): void {
     expect(strlen(CampaignIdGenerator::ALPHABET))->toBe(58);
@@ -86,8 +70,13 @@ test('alphabet contains no confusable chars', function (): void {
 
 test('reserved words are not valid custom aliases', function (string $alias): void {
     expect((new \App\Shared\CampaignIdGenerator())->validateCustom($alias))->toBeFalse();
-})->with(['mcp', 'MCP', 'admin', 'Postback']);
+})->with(['mcp', 'MCP', 'admin', 'Postback', '__health', '__HEALTH']);
 
 test('an alias that merely contains a reserved word is still valid', function (): void {
     expect((new \App\Shared\CampaignIdGenerator())->validateCustom('mcp2'))->toBeTrue();
 });
+
+test('existing reserved aliases remain editable without allowing new claims', function (string $alias): void {
+    expect($this->gen->validateCustom(strtoupper($alias), $alias))->toBeTrue();
+    expect($this->gen->validateCustom($alias, 'other'))->toBeFalse();
+})->with(['admin', 'mcp', 'postback', '__health']);

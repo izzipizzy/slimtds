@@ -194,5 +194,5 @@ return static function (App $app): void {
         ->add(SessionMiddleware::class);
 
     // Движок редиректа (slug) — last so static /admin, /postback, /p.js, /__health win
-    $app->get('/{slug:[A-Za-z0-9]{3,16}}', [\App\Engine\ClickHandler::class, 'handle']);
+    $app->get('/{slug:[A-Za-z0-9_-]{1,50}\z}', [\App\Engine\ClickHandler::class, 'handle']);
 };

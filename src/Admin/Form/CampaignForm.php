@@ -30,7 +30,7 @@ final class CampaignForm
             $errors['name'] = 'validation.max_length';
         }
 
-        $slug = trim((string)($data['slug'] ?? ''));
+        $slug = (string)($data['slug'] ?? '');
         if ($slug !== '') {
             // custom slug — validate format. When editing, the reserved-word
             // check is waived for the campaign's own current slug so an
