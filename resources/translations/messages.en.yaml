@@ -192,6 +192,7 @@ offers:
   empty_hint: 'Create your first offer — a URL with {click_id}/{country}/{payout} macros, plus a default payout.'
 
 flows:
+  parameter_name: Parameter name
   title: Flows
   list_title: 'Flows: {campaign}'
   create: Create flow
@@ -262,6 +263,7 @@ schemas:
   16: JS Redirect
 
 filter_fields:
+  query_parameter: Query parameter
   country: Country
   region: Region
   city: City

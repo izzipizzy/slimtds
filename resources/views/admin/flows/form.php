@@ -10,7 +10,7 @@ $action   = $flow === null
     : url('/admin/campaigns/' . $campaign->id . '/flows/' . $flow->id);
 $titleKey = $flow === null ? 'flows.create' : 'flows.edit';
 
-$initialFilters      = $flow?->filters ?? [];
+$initialFilters      = json_decode(old('filters', json_encode($flow?->filters ?? [])), true) ?? [];
 $initialTargetOffers = $flow?->targetOffers ?? [];
 $initialSchemaConfig = $flow?->schemaConfig ?? [];
 
@@ -143,6 +143,7 @@ $countries = $_lang === 'en' ? $countriesEn : $countriesRu;
         <div class="form-section">
             <span class="form-section-label"><?= e(t('flows.filters')) ?></span>
             <p style="font-size:0.8rem;color:var(--color-stone-400);font-family:var(--font-sans);margin-bottom:12px"><?= e(t('flows.no_filters')) ?></p>
+            <?php if (isset($errors['filters'])): ?><p class="form-error"><?= e(t($errors['filters'])) ?></p><?php endif; ?>
 
             <template x-for="(group, gi) in filters" :key="gi">
                 <div style="border:1px solid var(--color-stone-200);border-radius:4px;padding:12px;margin-bottom:10px;background:var(--color-stone-50)">
@@ -152,12 +153,18 @@ $countries = $_lang === 'en' ? $countriesEn : $countriesRu;
                                 style="font-size:0.8rem;color:var(--color-stone-400);background:none;border:none;cursor:pointer;padding:0 4px">&times;</button>
                     </div>
                     <template x-for="(cond, ci) in group" :key="ci">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                            <select x-model="cond.field" class="input" style="max-width:180px;font-size:0.8rem">
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px">
+                            <select :value="cond.field.startsWith('param:') ? 'param:' : cond.field" @change="cond.field = $event.target.value" data-filter-field class="input" style="max-width:180px;font-size:0.8rem">
                                 <?php foreach ($filterFields as $ff): ?>
                                     <option value="<?= e($ff) ?>"><?= e(t('filter_fields.' . $ff)) ?></option>
                                 <?php endforeach; ?>
+                                <option value="param:"><?= e(t('filter_fields.query_parameter')) ?></option>
                             </select>
+                            <template x-if="cond.field.startsWith('param:')">
+                                <input :value="cond.field.slice(6)" @input="cond.field = 'param:' + $event.target.value"
+                                       data-param-name aria-label="<?= e(t('flows.parameter_name')) ?>" placeholder="<?= e(t('flows.parameter_name')) ?>"
+                                       class="input" style="max-width:180px;font-size:0.8rem;font-family:var(--font-mono)" autocomplete="off">
+                            </template>
                             <select x-model="cond.op" class="input" style="max-width:100px;font-size:0.8rem">
                                 <?php foreach ($filterOps as $op): ?>
                                     <option value="<?= e($op) ?>"><?= e(t('filter_ops.' . $op)) ?></option>

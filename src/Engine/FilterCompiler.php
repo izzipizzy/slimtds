@@ -75,6 +75,10 @@ final class FilterCompiler
 
     private static function fieldExtractor(string $field): Closure
     {
+        if (str_starts_with($field, 'param:')) {
+            $name = substr($field, 6);
+            return static fn (Context $c) => $c->queryParam($name);
+        }
         return match ($field) {
             'country'        => static fn (Context $c) => $c->country,
             'region'         => static fn (Context $c) => $c->region,

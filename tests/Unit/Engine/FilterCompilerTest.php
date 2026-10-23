@@ -80,3 +80,68 @@ test('compiler caches identical filters', function (): void {
     $b = $compiler->compile([[['field' => 'country', 'op' => 'eq', 'value' => 'ru']]]);
     expect($a)->toBe($b);
 });
+
+test('named query parameters use existing operators for arbitrary names', function (string $name): void {
+    $compiler = new FilterCompiler();
+    foreach (['eq' => true, 'neq' => false, 'in' => true, 'not_in' => false, 'exists' => true] as $op => $matches) {
+        $value = in_array($op, ['in', 'not_in'], true) ? ['ember', 'other'] : 'ember';
+        $filter = $compiler->compile([[['field' => 'param:' . $name, 'op' => $op, 'value' => $value]]]);
+        expect($filter(ctx(['query' => [$name => 'ember']])))->toBe($matches);
+        expect($filter(ctx(['query' => [$name => 'reject']])))->toBe($op === 'exists' || !$matches);
+        expect($filter(ctx()))->toBe(in_array($op, ['neq', 'not_in'], true));
+    }
+})->with(['brand', 'sub_id_30', 'sub_id_31', '_custom-2', 'Campaign', str_repeat('a', 64)]);
+
+test('named query parameters retain empty and zero strings and maximum byte value', function (): void {
+    $compiler = new FilterCompiler();
+    foreach (['', '0', str_repeat('x', 2048), str_repeat('é', 1024)] as $value) {
+        expect(ctx(['query' => ['brand' => $value]])->queryParam('brand'))->toBe($value);
+        $filter = $compiler->compile([[['field' => 'param:brand', 'op' => 'eq', 'value' => $value]]]);
+        expect($filter(ctx(['query' => ['brand' => $value]])))->toBeTrue();
+    }
+    $exists = $compiler->compile([[['field' => 'param:brand', 'op' => 'exists', 'value' => null]]]);
+    expect($exists(ctx(['query' => ['brand' => '']])))->toBeFalse();
+    expect($exists(ctx(['query' => ['brand' => '0']])))->toBeTrue();
+    expect(ctx()->queryParam('brand'))->toBeNull();
+});
+
+test('named query parameters treat invalid names and values as missing', function (string $name, mixed $value): void {
+    $compiler = new FilterCompiler();
+    $context = ctx(['query' => [$name => $value]]);
+    expect($context->queryParam($name))->toBeNull();
+    expect($context->query)->toBe([$name => $value]);
+    foreach (['eq' => false, 'neq' => true, 'in' => false, 'not_in' => true, 'exists' => false] as $op => $matches) {
+        $filter = $compiler->compile([[['field' => 'param:' . $name, 'op' => $op, 'value' => 'ember']]]);
+        expect($filter(ctx(['query' => [$name => $value]])))->toBe($matches);
+    }
+})->with([
+    'empty name' => ['', 'ember'],
+    '65 character name' => [str_repeat('a', 65), 'ember'],
+    'digit first' => ['1brand', 'ember'],
+    'hyphen first' => ['-brand', 'ember'],
+    'dot' => ['br.and', 'ember'],
+    'colon' => ['brand:other', 'ember'],
+    'unicode name' => ['бренд', 'ember'],
+    'newline name' => ["brand\n", 'ember'],
+    'array' => ['brand', ['ember']],
+    'null' => ['brand', null],
+    'integer' => ['brand', 0],
+    'boolean' => ['brand', true],
+    '2049 bytes' => ['brand', str_repeat('x', 2049)],
+    'multibyte oversize' => ['brand', str_repeat('é', 1025)],
+    ...array_combine(
+        array_map(fn (int $i) => 'control ' . $i, [...range(0, 31), 127]),
+        array_map(fn (int $i) => ['brand', 'ember' . chr($i)], [...range(0, 31), 127]),
+    ),
+]);
+
+test('named query parameters preserve builtin fields and malformed prefixes stay unknown', function (): void {
+    $compiler = new FilterCompiler();
+    $context = ctx(['country' => 'ru', 'query' => ['country' => 'us', 'brand' => 'ember']]);
+    foreach (['country' => 'ru', 'param:country' => 'us'] as $field => $value) {
+        expect(($compiler->compile([[['field' => $field, 'op' => 'eq', 'value' => $value]]]))($context))->toBeTrue();
+    }
+    foreach (['param', 'Param:brand', 'parambrand', 'param::brand'] as $field) {
+        expect(($compiler->compile([[['field' => $field, 'op' => 'eq', 'value' => 'ember']]]))($context))->toBeFalse();
+    }
+});

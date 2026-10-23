@@ -51,4 +51,12 @@ final class Context
         public readonly string $campaignSlug,
         public readonly int $timestamp,        // unix
     ) {}
+
+    public function queryParam(string $name): ?string
+    {
+        if (!preg_match('/\A[A-Za-z_][A-Za-z0-9_-]{0,63}\z/', $name)) return null;
+        $value = $this->query[$name] ?? null;
+        if (!is_string($value) || strlen($value) > 2048 || preg_match('/[\x00-\x1F\x7F]/', $value)) return null;
+        return $value;
+    }
 }

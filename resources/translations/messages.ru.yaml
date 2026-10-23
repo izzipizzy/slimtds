@@ -204,6 +204,7 @@ offers:
   empty_hint: 'Создайте первый офер — URL с макросами {click_id}/{country}/{payout}, и payout по умолчанию.'
 
 flows:
+  parameter_name: Имя параметра
   title: Потоки
   list_title: 'Потоки: {campaign}'
   create: Создать поток
@@ -276,6 +277,7 @@ schemas:
   16: JS Redirect
 
 filter_fields:
+  query_parameter: Параметр запроса
   country: Страна
   region: Регион
   city: Город

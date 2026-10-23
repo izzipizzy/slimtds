@@ -75,3 +75,42 @@ test('spin covers every value across many iterations', function (): void {
     }
     expect(array_keys($seen))->toEqualCanonicalizing(['a', 'b', 'c']);
 });
+
+test('named query parameters encode URL components for arbitrary names', function (string $name): void {
+    $this->ctx->query[$name] = 'a &%/é%20';
+    expect($this->expander->expand('https://example.com/?p={param:' . $name . '}', $this->ctx))
+        ->toBe('https://example.com/?p=a%20%26%25%2F%C3%A9%2520');
+})->with(['brand', 'sub_id_30', 'sub_id_31', '_custom-2', 'Campaign', str_repeat('a', 64)]);
+
+test('named query parameters expand missing and invalid recognized tokens to empty', function (string $name, mixed $value): void {
+    $this->ctx->query[$name] = $value;
+    expect($this->expander->expand('p={param:' . $name . '}', $this->ctx))->toBe('p=');
+})->with([
+    'empty name' => ['', 'ember'],
+    '65 character name' => [str_repeat('a', 65), 'ember'],
+    'digit first' => ['1brand', 'ember'],
+    'hyphen first' => ['-brand', 'ember'],
+    'space' => ['br and', 'ember'],
+    'colon' => ['brand:other', 'ember'],
+    'unicode name' => ['бренд', 'ember'],
+    'newline name' => ["brand\n", 'ember'],
+    'array' => ['brand', ['ember']],
+    'null' => ['brand', null],
+    'integer' => ['brand', 0],
+    'boolean' => ['brand', true],
+    '2049 bytes' => ['brand', str_repeat('x', 2049)],
+    'multibyte oversize' => ['brand', str_repeat('é', 1025)],
+    ...array_combine(
+        array_map(fn (int $i) => 'control ' . $i, [...range(0, 31), 127]),
+        array_map(fn (int $i) => ['brand', 'ember' . chr($i)], [...range(0, 31), 127]),
+    ),
+]);
+
+test('named query parameters preserve zero empty maximum values builtins and unknown policy', function (): void {
+    $this->ctx->query = ['country' => 'us', 'zero' => '0', 'empty' => '', 'max' => str_repeat('x', 2048)];
+    expect($this->expander->expand('{country}/{param:country}/{param:zero}/{param:empty}/{param:missing}/{unknown}', $this->ctx))
+        ->toBe('ru/us/0///{unknown}');
+    expect($this->expander->expand('{param:max}', $this->ctx))->toBe(str_repeat('x', 2048));
+    $this->ctx->query['max'] = str_repeat('é', 1024);
+    expect($this->expander->expand('{param:max}', $this->ctx))->toBe(str_repeat('%C3%A9', 1024));
+});

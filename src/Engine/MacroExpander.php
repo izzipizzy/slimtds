@@ -18,6 +18,7 @@ final class MacroExpander
     private function resolve(string $name, string $arg, Context $ctx): ?string
     {
         return match ($name) {
+            'param'        => rawurlencode($ctx->queryParam($arg) ?? ''),
             'country'      => $ctx->country,
             'region'       => $ctx->region,
             'city'         => $ctx->city,

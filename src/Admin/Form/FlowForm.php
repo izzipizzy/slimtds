@@ -6,7 +6,10 @@ namespace App\Admin\Form;
 
 final class FlowForm
 {
-    /** @param array<string,mixed> $data  @return array<string,string> */
+    /**
+     * @param array<string,mixed> $data
+     * @return array<string,string>
+     */
     public function validate(array $data): array
     {
         $errors = [];
@@ -31,6 +34,17 @@ final class FlowForm
         $filters = json_decode($filtersRaw, true);
         if (!is_array($filters)) {
             $errors['filters'] = 'validation.pattern';
+        } else {
+            foreach ($filters as $group) {
+                if (!is_array($group)) continue;
+                foreach ($group as $condition) {
+                    $field = is_array($condition) ? ($condition['field'] ?? '') : '';
+                    if (is_string($field) && str_starts_with($field, 'param:')
+                        && !preg_match('/\A[A-Za-z_][A-Za-z0-9_-]{0,63}\z/', substr($field, 6))) {
+                        $errors['filters'] = 'validation.pattern';
+                    }
+                }
+            }
         }
 
         // target_offers JSON must decode
