@@ -312,7 +312,14 @@ final class ClickHandler
         if ($raw === '') return '';
         if (preg_match('/^\{offer:\s*([^}]+?)\s*\}$/', $raw, $m)) {
             $offer = $this->resolveOffer($m[1]);
-            return $offer === null ? '' : $this->macros->expand($offer->url, $ctx);
+            if ($offer === null) return '';
+            $url = $this->macros->expand($offer->url, $ctx);
+            // Offer-token postbacks must match the offer actually served,
+            // including campaign fallbacks outside the flow's target list.
+            if ($url !== '' && in_array($c->trashMode, [1, 4, 5, 6, 7], true)) {
+                $ctx->matchedOfferId = $offer->id;
+            }
+            return $url;
         }
         return $this->macros->expand($raw, $ctx);
     }
