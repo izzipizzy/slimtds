@@ -27,6 +27,7 @@ $commands = [
     App\Admin\Command\DbMigrateCommand::class,
     App\Admin\Command\AdminInitCommand::class,
     App\Admin\Command\AdminSetPasswordCommand::class,
+    App\Admin\Command\AdminWebauthnResetCommand::class,
     App\Admin\Command\DbSeedCommand::class,
     App\Admin\Command\SeedStatsCommand::class,
     App\Admin\Command\DemoResetCommand::class,

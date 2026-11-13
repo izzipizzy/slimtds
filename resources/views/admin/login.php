@@ -24,3 +24,26 @@ $demo = ($_ENV['DEMO_MODE'] ?? '') === '1';
 
     <button type="submit" class="btn" style="width:100%;justify-content:center;margin-top:6px"><?= e(t('auth.submit')) ?> →</button>
 </form>
+
+<div x-data="{ busy: false, err: '' }" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px;color:var(--color-faint);font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase">
+        <span style="flex:1;height:1px;background:var(--color-border)"></span><?= e(t('auth.or')) ?><span style="flex:1;height:1px;background:var(--color-border)"></span>
+    </div>
+    <button type="button" class="btn btn-ghost" style="width:100%;justify-content:center;gap:8px" :disabled="busy"
+            @click="
+                err = '';
+                const login = document.getElementById('login').value.trim();
+                if (!login) { err = <?= e(json_encode(t('auth.webauthn_need_login'))) ?>; document.getElementById('login').focus(); return; }
+                if (!slimWebauthn.supported()) { err = <?= e(json_encode(t('auth.webauthn_unsupported'))) ?>; return; }
+                busy = true;
+                slimWebauthn.login(login)
+                    .then(r => { location.href = r.redirect || '/admin'; })
+                    .catch(e => { err = slimWebauthn.niceError(e); busy = false; });
+            ">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4M18 5l2 2M15 8l2 2"/></svg>
+        <span x-text="busy ? <?= e(json_encode(t('auth.webauthn_touch'))) ?> : <?= e(json_encode(t('auth.webauthn_button'))) ?>"></span>
+    </button>
+    <div x-show="err" x-cloak x-text="err" role="alert" style="font-size:0.8rem;color:var(--color-danger, #b42318)"></div>
+</div>
+
+<?php require __DIR__ . '/../_partials/webauthn-js.php'; ?>

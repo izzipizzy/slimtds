@@ -7,6 +7,9 @@ namespace App\Admin\Controller;
 use App\Admin\Repository\AdminRepository;
 use App\Shared\Auth\AuthEventLogger;
 use App\Shared\Auth\PasswordHasher;
+use App\Shared\Auth\WebAuthnService;
+use App\Admin\Repository\Admin;
+use App\Admin\Repository\WebAuthnCredentialRepository;
 use App\Shared\Version\UpdateStatus;
 use App\Shared\View\View;
 use Psr\Http\Message\ResponseInterface;
@@ -23,6 +26,8 @@ final class LoginController
         private readonly PasswordHasher $hasher,
         private readonly AuthEventLogger $audit,
         private readonly UpdateStatus $updateStatus,
+        private readonly WebAuthnService $webauthn,
+        private readonly WebAuthnCredentialRepository $keys,
     ) {}
 
     public function postLogin(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
@@ -42,6 +47,13 @@ final class LoginController
             return $this->fail($response, 'auth.wrong_credentials', $login, $ip, $ua, $view);
         }
 
+        // An admin with a hardware key never signs in with a password — not
+        // even the correct one. Checked before verify() so the password is
+        // not even tested (no oracle for it while keys are enrolled).
+        if ($this->keys->countForAdmin($admin->id) > 0) {
+            return $this->fail($response, 'auth.webauthn_required', $login, $ip, $ua, $view);
+        }
+
         if (!$this->hasher->verify($pass, $admin->passwordHash)) {
             return $this->fail($response, 'auth.wrong_credentials', $login, $ip, $ua, $view);
         }
@@ -51,6 +63,60 @@ final class LoginController
             $this->admins->updatePassword($admin->id, $this->hasher->hash($pass));
         }
 
+        $target = $this->startSession($admin, $ip, $ua, $view, ['method' => 'password']);
+        return $response->withHeader('Location', $target)->withStatus(302);
+    }
+
+    /** POST /admin/login/webauthn/options  {login} → PublicKeyCredentialRequestOptions */
+    public function webauthnOptions(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
+    {
+        $body = $request->getParsedBody();
+        $login = is_array($body) && is_string($body['login'] ?? null) ? trim($body['login']) : '';
+        $admin = $login !== '' ? $this->admins->findByLogin($login) : null;
+        $options = $admin !== null ? $this->webauthn->loginOptions($admin, $request) : null;
+        if ($options === null) {
+            return $this->json($response, ['error' => $view->i18n->t('auth.webauthn_not_configured')], 400);
+        }
+        return $this->json($response, ['publicKey' => $options['publicKey']]);
+    }
+
+    /** POST /admin/login/webauthn  {id, clientDataJSON, authenticatorData, signature} */
+    public function webauthnLogin(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
+    {
+        $body = $request->getParsedBody();
+        $body = is_array($body) ? $body : [];
+        $ip = $this->resolveIp($request);
+        $ua = $request->getHeaderLine('User-Agent') ?: null;
+
+        $pending = null;
+        try {
+            $pending = $this->admins->findById($this->webauthn->pendingAdminId('login'));
+            $adminId = $this->webauthn->finishLogin($body, $request);
+            $admin = $this->admins->findById($adminId);
+            if ($admin === null) {
+                throw new \InvalidArgumentException('admin gone');
+            }
+        } catch (\Throwable $e) {
+            $this->audit->log(
+                AuthEventLogger::EVENT_LOGIN_FAIL,
+                adminLogin: $pending?->login,
+                ip: $ip,
+                userAgent: $ua,
+                details: ['method' => 'webauthn', 'reason' => mb_substr($e->getMessage(), 0, 200)],
+            );
+            return $this->json($response, ['error' => $view->i18n->t('auth.webauthn_failed')], 400);
+        }
+
+        $target = $this->startSession($admin, $ip, $ua, $view, ['method' => 'webauthn']);
+        return $this->json($response, ['redirect' => $target]);
+    }
+
+    /**
+     * @param array<string,mixed> $details
+     * @return string redirect target
+     */
+    private function startSession(Admin $admin, ?string $ip, ?string $ua, View $view, array $details): string
+    {
         // Regenerate session id on privilege elevation (prevents session fixation)
         session_regenerate_id(true);
         $_SESSION['admin_id'] = $admin->id;
@@ -61,6 +127,7 @@ final class LoginController
             adminLogin: $admin->login,
             ip: $ip,
             userAgent: $ua,
+            details: $details,
         );
 
         $this->queueUpdateToast($view);
@@ -68,8 +135,17 @@ final class LoginController
         // If must change password, redirect to /admin/password, else dashboard.
         // The flash survives the redirect either way, so the toast still shows
         // on the forced password-change page.
-        $target = $admin->mustChangePassword ? '/admin/password' : '/admin';
-        return $response->withHeader('Location', $target)->withStatus(302);
+        return $admin->mustChangePassword ? '/admin/password' : '/admin';
+    }
+
+    /** @param array<string,mixed> $data */
+    private function json(ResponseInterface $response, array $data, int $status = 200): ResponseInterface
+    {
+        $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Cache-Control', 'no-store')
+            ->withStatus($status);
     }
 
     public function getLogout(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

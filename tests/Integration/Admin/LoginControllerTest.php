@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Admin\Controller\LoginController;
 use App\Admin\Repository\AdminRepository;
+use App\Admin\Repository\WebAuthnCredentialRepository;
+use App\Shared\Auth\WebAuthnService;
 use App\Shared\Asset\Manifest;
 use App\Shared\Auth\AuthEventLogger;
 use App\Shared\Auth\PasswordHasher;
@@ -46,11 +48,14 @@ beforeEach(function (): void {
         public function read(): ?UpdateState { return $this->t->updateState; }
     };
     $this->makeController = function (BuildInfo $build) use ($reader): LoginController {
+        $keys = new WebAuthnCredentialRepository($this->db);
         return new LoginController(
             new AdminRepository($this->db),
             $this->hasher,
             new AuthEventLogger($this->db),
             new UpdateStatus($build, $reader, true, 'izzipizzy/slimtds'),
+            new WebAuthnService($keys),
+            $keys,
         );
     };
 
@@ -205,6 +210,8 @@ test('a throwing update reader does not break the login', function (): void {
         $this->hasher,
         new AuthEventLogger($this->db),
         new UpdateStatus(new BuildInfo('v0.7.0', 'abc1234', null, 'release'), $throwing, true, 'izzipizzy/slimtds'),
+        new WebAuthnService(new WebAuthnCredentialRepository($this->db)),
+        new WebAuthnCredentialRepository($this->db),
     );
 
     $req = (new ServerRequestFactory())->createServerRequest('POST', '/admin/login')

@@ -15,6 +15,8 @@ final class AuthEventLogger
     public const EVENT_RATE_LIMITED    = 'rate_limited';
     public const EVENT_MCP_KEY_GENERATED = 'mcp_key_generated';
     public const EVENT_MCP_KEY_REVOKED   = 'mcp_key_revoked';
+    public const EVENT_WEBAUTHN_KEY_ADDED   = 'webauthn_key_added';
+    public const EVENT_WEBAUTHN_KEY_REMOVED = 'webauthn_key_removed';
 
     public function __construct(private readonly Connection $db) {}
 
@@ -36,6 +38,8 @@ final class AuthEventLogger
             self::EVENT_RATE_LIMITED,
             self::EVENT_MCP_KEY_GENERATED,
             self::EVENT_MCP_KEY_REVOKED,
+            self::EVENT_WEBAUTHN_KEY_ADDED,
+            self::EVENT_WEBAUTHN_KEY_REMOVED,
         ];
         if (!in_array($eventType, $valid, true)) {
             throw new \InvalidArgumentException("unknown event_type: {$eventType}");
