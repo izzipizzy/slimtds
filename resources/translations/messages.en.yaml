@@ -24,6 +24,15 @@ auth:
   logout: Sign out
   wrong_credentials: Invalid login or password
   rate_limited: Too many attempts, try again later
+  or: or
+  webauthn_button: Sign in with YubiKey
+  webauthn_touch: Touch your key…
+  webauthn_need_login: Enter your login first
+  webauthn_unsupported: 'This browser does not support security keys (HTTPS and a modern browser are required)'
+  webauthn_not_configured: No YubiKey is set up for this login
+  webauthn_failed: 'Key not accepted, try again'
+  webauthn_cancelled: Cancelled or timed out
+  webauthn_required: 'Password sign-in is disabled for this account — use your YubiKey'
   must_change_password: You must change the password on first login
 
 menu:
@@ -517,6 +526,28 @@ settings:
     cron: Cron log
     notifications: Notifications
     mcp: MCP
+    security: Security keys
+  security:
+    heading: Hardware keys (YubiKey)
+    intro: 'Register a YubiKey or another FIDO2 key. While at least one key is registered, sign-in works only with a key — the password is refused, even the correct one.'
+    status_on: 'Key-only sign-in. Password is disabled for this account.'
+    status_off: 'No keys registered — sign-in with login and password.'
+    col:
+      name: Name
+      added: Added
+      last_used: Last sign-in
+    name_label: New key name
+    add: Add key
+    added: 'Key added. Password sign-in is disabled.'
+    add_failed: Could not add the key
+    already_added: This key is already registered
+    remove: Remove
+    removed: Key removed
+    removed_last: 'Last key removed — password sign-in is enabled again.'
+    confirm_first: 'Once a key is added, password sign-in is disabled. Registering a backup key is recommended. Continue?'
+    confirm_remove: Remove this key?
+    confirm_remove_last: 'This is the last key. Removing it re-enables password sign-in. Remove?'
+    recovery: 'Lost your key? Run this on the server — it removes all keys and re-enables password sign-in:'
   retention:
     heading: Retention (days)
     hint: 'How many days to keep data. Changes apply on the next {cmd} run (daily at 02:00 UTC).'

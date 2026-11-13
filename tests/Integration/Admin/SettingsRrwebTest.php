@@ -25,6 +25,7 @@ beforeEach(function (): void {
         new NotificationRegistry(),
         new TelegramNotifier(null, null),
         new ApiKeyService($this->repo),
+        new \App\Admin\Repository\WebAuthnCredentialRepository($this->db),
     );
 
     $root         = dirname(__DIR__, 3);

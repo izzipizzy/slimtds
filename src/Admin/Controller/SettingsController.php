@@ -33,6 +33,7 @@ final class SettingsController
         private readonly NotificationRegistry $notifications,
         private readonly TelegramNotifier $tg,
         private readonly ApiKeyService $mcpKeys,
+        private readonly \App\Admin\Repository\WebAuthnCredentialRepository $webauthnKeys,
     ) {}
 
     public function index(ServerRequestInterface $request, ResponseInterface $response, View $view): ResponseInterface
@@ -120,6 +121,7 @@ final class SettingsController
                 'notif_defs'    => $this->notifications->definitions(),
                 'notif_engines' => SearchEngine::keys(),
                 'tg_configured' => $this->tg->isConfigured(),
+                'security_keys' => is_int($_SESSION['admin_id'] ?? null) ? $this->webauthnKeys->listForAdmin($_SESSION['admin_id']) : [],
                 'mcp_status'    => $this->mcpKeys->status(),
                 'mcp_full_ip'   => $this->mcpKeys->fullIp(),
                 'mcp_new_key'   => $mcpNewKey,

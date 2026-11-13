@@ -70,6 +70,11 @@ return static function (App $app): void {
         $g->post('/login', [\App\Admin\Controller\LoginController::class, 'postLogin'])
             ->add(RateLimitMiddleware::class);
 
+        // Hardware-key (YubiKey / WebAuthn) sign-in — pre-auth, JSON
+        $g->post('/login/webauthn/options', [\App\Admin\Controller\LoginController::class, 'webauthnOptions']);
+        $g->post('/login/webauthn', [\App\Admin\Controller\LoginController::class, 'webauthnLogin'])
+            ->add(RateLimitMiddleware::class);
+
         // Logout (Task 17)
         $g->get('/logout', [\App\Admin\Controller\LoginController::class, 'getLogout']);
 
@@ -132,6 +137,11 @@ return static function (App $app): void {
         $g->get('/settings/backups/{name}/download',           [\App\Admin\Controller\BackupController::class, 'download']);
         $g->post('/settings/backups/{name}/delete',            [\App\Admin\Controller\BackupController::class, 'delete']);
         $g->post('/settings/notifications/test', [\App\Admin\Controller\SettingsController::class, 'testTelegram']);
+
+        // Hardware keys (YubiKey) — inside the /admin/settings tabbed page
+        $g->post('/settings/security/webauthn/options',      [\App\Admin\Controller\SecuritySettingsController::class, 'options']);
+        $g->post('/settings/security/webauthn',              [\App\Admin\Controller\SecuritySettingsController::class, 'register']);
+        $g->post('/settings/security/webauthn/{id:[0-9]+}/delete', [\App\Admin\Controller\SecuritySettingsController::class, 'delete']);
 
         // MCP key + options — inside the /admin/settings tabbed page
         $g->post('/settings/mcp/generate', [\App\Admin\Controller\McpSettingsController::class, 'generate']);

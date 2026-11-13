@@ -12,11 +12,12 @@ use Slim\Psr7\Factory\ResponseFactory;
 
 /**
  * Redirects unauthenticated requests to /admin/login.
- * Exemptions: /admin/login, /admin/logout (both need pre-auth access).
+ * Exemptions: /admin/login, /admin/logout, /admin/login/webauthn{,/options}
+ * (all need pre-auth access).
  */
 final class AuthMiddleware implements MiddlewareInterface
 {
-    private const EXEMPT_PATHS = ['/admin/login', '/admin/logout'];
+    private const EXEMPT_PATHS = ['/admin/login', '/admin/logout', '/admin/login/webauthn/options', '/admin/login/webauthn'];
     private const EXEMPT_PATTERNS = ['#^/admin/lang/[a-z]{2}$#'];
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface

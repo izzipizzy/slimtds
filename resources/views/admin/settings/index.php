@@ -58,6 +58,10 @@ require __DIR__ . '/../../_partials/page-header.php';
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V3M15 7V3M7 7h10v5a5 5 0 0 1-10 0V7zM12 17v4"/></svg>
             <?= e(t('settings.tab.mcp')) ?>
         </button>
+        <button class="tab" role="tab" :class="{ 'is-active': tab === 'security' }" @click="tab = 'security'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4M18 5l2 2M15 8l2 2"/></svg>
+            <?= e(t('settings.tab.security')) ?>
+        </button>
     </nav>
 
     <!-- ===================== General tab ===================== -->
@@ -383,4 +387,5 @@ require __DIR__ . '/../../_partials/page-header.php';
     </section>
 
     <?php require __DIR__ . '/_mcp_tab.php'; ?>
+    <?php require __DIR__ . '/_security_tab.php'; ?>
 </div>

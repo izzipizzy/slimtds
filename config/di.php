@@ -57,6 +57,8 @@ return static function (): \DI\Container {
         Partitions::class     => \DI\autowire(),
         PasswordHasher::class => \DI\autowire(),
         \App\Admin\Repository\AdminRepository::class => \DI\autowire(),
+        \App\Admin\Repository\WebAuthnCredentialRepository::class => \DI\autowire(),
+        \App\Shared\Auth\WebAuthnService::class => \DI\autowire(),
         \App\Shared\RateLimit\RateLimiter::class => \DI\autowire(),
         \App\Shared\Auth\AuthEventLogger::class => \DI\autowire(),
         \App\Shared\Db\Connection::class => \DI\autowire()
@@ -74,6 +76,7 @@ return static function (): \DI\Container {
         \App\Admin\Middleware\RateLimitMiddleware::class => \DI\autowire(),
         \App\Admin\Middleware\AuthMiddleware::class => \DI\autowire(),
         \App\Admin\Controller\PasswordController::class => \DI\autowire(),
+        \App\Admin\Controller\SecuritySettingsController::class => \DI\autowire(),
         \App\Admin\Repository\CampaignRepository::class => \DI\autowire(),
         \App\Admin\Form\CampaignForm::class => \DI\autowire(),
         \App\Admin\Controller\CampaignController::class => \DI\autowire(),
